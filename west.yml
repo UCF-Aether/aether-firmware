@@ -3,7 +3,7 @@
 
 manifest:
   self:
-    path: aether-firmware
+    path: Aether-Firmware
 
   remotes:
     - name: zephyrproject-rtos
@@ -13,4 +13,4 @@ manifest:
     - name: zephyr
       remote: zephyrproject-rtos
       revision: main
-      import: true
+      import: 
