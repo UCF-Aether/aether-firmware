@@ -13,9 +13,10 @@
 #include <stdio.h>
 #include <zephyr.h>
 
+/***************** LoRaWAN Configuration Paramters *******************/
 
-
-#undef ENABLE_LORAWAN
+/* Enable or disable LoRaWAN for testing purposes */
+#define ENABLE_LORAWAN
 
 #define DEFAULT_RADIO_NODE DT_ALIAS(lora0)
 BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
@@ -37,7 +38,7 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 
 LOG_MODULE_REGISTER(lorawan_class_a);
 
-char data[] = {'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'};
+/*********************************************************************/
 
 static void dl_callback(uint8_t port, bool data_pending,
 			int16_t rssi, int8_t snr,
@@ -57,15 +58,14 @@ static void lorwan_datarate_changed(enum lorawan_datarate dr)
 	LOG_INF("New Datarate: DR_%d, Max Payload %d", dr, max_size);
 }
 
-void main(void)
+int init_lorawan()
 {
-	#ifdef ENABLE_LORAWAN
 	const struct device *lora_dev;
 	struct lorawan_join_config join_cfg;
 	uint8_t dev_eui[] = LORAWAN_DEV_EUI;
 	uint8_t join_eui[] = LORAWAN_JOIN_EUI;
 	uint8_t app_key[] = LORAWAN_APP_KEY;
-	int ret;
+	int ret = 1;
 
 	struct lorawan_downlink_cb downlink_cb = {
 		.port = LW_RECV_PORT_ANY,
@@ -75,13 +75,13 @@ void main(void)
 	lora_dev = device_get_binding(DEFAULT_RADIO);
 	if (!lora_dev) {
 		LOG_ERR("%s Device not found", DEFAULT_RADIO);
-		return;
+		return ret;
 	}
 
 	ret = lorawan_start();
 	if (ret < 0) {
 		LOG_ERR("lorawan_start failed: %d", ret);
-		return;
+		return ret;
 	}
 
 	lorawan_register_downlink_callback(&downlink_cb);
@@ -97,14 +97,26 @@ void main(void)
 	ret = lorawan_join(&join_cfg);
 	if (ret < 0) {
 		LOG_ERR("lorawan_join_network failed: %d", ret);
-		return;
+		return ret;
 	}
+
+	return ret;
+}
+
+void main(void)
+{
+	#ifdef ENABLE_LORAWAN
+	int ret;
+	ret = init_lorawan();
+	if (ret < 0)
+		return;
 	#endif
 
-	const struct device *dev = DEVICE_DT_GET(DT_INST(0, bosch_bme680));
+	// Initialze the BME688
+	const struct device *dev_bme = DEVICE_DT_GET(DT_INST(0, bosch_bme680));
 	struct sensor_value temp, press, humidity, gas_res;
 
-	if (!device_is_ready(dev)) {
+	if (!device_is_ready(dev_bme)) {
 		printk("BME688 is not ready!\n");
 		return;
 	}
@@ -115,7 +127,22 @@ void main(void)
 	
 	while (1)
 	{
+		sensor_sample_fetch(dev_bme);
+		sensor_channel_get(dev_bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
+		sensor_channel_get(dev_bme, SENSOR_CHAN_PRESS, &press);
+		sensor_channel_get(dev_bme, SENSOR_CHAN_HUMIDITY, &humidity);
+		sensor_channel_get(dev_bme, SENSOR_CHAN_GAS_RES, &gas_res);
+
+		printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
+				temp.val1, temp.val2, press.val1, press.val2,
+				humidity.val1, humidity.val2, gas_res.val1,
+				gas_res.val2);
+		
+
 		#ifdef ENABLE_LORAWAN
+
+		char data[] = {'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'};
+
 		ret = lorawan_send(2, data, sizeof(data),
 				   LORAWAN_MSG_CONFIRMED);
 
@@ -139,24 +166,6 @@ void main(void)
 		LOG_INF("Data sent!");
 		#endif
 		
-		sensor_sample_fetch(dev);
-		sensor_channel_get(dev, SENSOR_CHAN_AMBIENT_TEMP, &temp);
-		sensor_channel_get(dev, SENSOR_CHAN_PRESS, &press);
-		sensor_channel_get(dev, SENSOR_CHAN_HUMIDITY, &humidity);
-		sensor_channel_get(dev, SENSOR_CHAN_GAS_RES, &gas_res);
-
-		printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
-				temp.val1, temp.val2, press.val1, press.val2,
-				humidity.val1, humidity.val2, gas_res.val1,
-				gas_res.val2);
-		
 		k_sleep(DELAY);
 	}
-
-
-	while (1) {
-
-	}
-
-
 }
