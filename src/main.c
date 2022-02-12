@@ -14,6 +14,13 @@
 #include <stdio.h>
 #include <zephyr.h>
 
+// #include "zmod4510_config_oaq2.h"
+// #include "zmod4xxx.h"
+// #include "zmod4xxx_cleaning.h"
+// #include "zmod4xxx_hal.h"
+// #include "oaq_2nd_gen.h"
+
+
 /***************** LoRaWAN Configuration Paramters *******************/
 
 /* Enable or disable LoRaWAN for testing purposes */
@@ -188,6 +195,7 @@ int init_lorawan_abp()
 
 void main(void)
 {
+	int ret;
 	/* Initialize LoRaWAN if we are using it */
 	#ifdef ENABLE_LORAWAN
 	int ret;
@@ -206,17 +214,38 @@ void main(void)
 
 	#endif
 
-	const struct device *dev_zmod = DEVICE_DT_GET(DT_INST(0, renesas_zmod4510));
+	const struct device *dev_zmod = device_get_binding("renesas,zmod4510");
+	struct sensor_value fast_aqi, o3_ppb, aqi;
+
+	// int8_t zret;
+	// oaq_2nd_gen_handle_t algo_handle;
+	// oaq_2nd_gen_results_t algo_results;
+
+	// zmod4xxx_dev_t zmod_dev;
+	// uint8_t adc_result[ZMOD4510_ADC_DATA_LEN];
+
+	// float humidity_pct;
+	// float temperature_degc;
+
+	// zret = init_oaq_2nd_gen(&algo_handle, &zmod_dev);
 
 	// Initialze the BME688
-	const struct device *dev_bme = DEVICE_DT_GET(DT_INST(0, bosch_bme680));
-	struct sensor_value temp, press, humidity, gas_res;
+	// const struct device *dev_bme = DEVICE_DT_GET(DT_INST(0, bosch_bme680));
+	// struct sensor_value temp, press, humidity, gas_res;
 
-	// Check if the BME688 is ready
-	if (!device_is_ready(dev_bme)) {
-		printk("BME688 is not ready!\n");
+	ret = device_is_ready(dev_zmod);
+	if (!ret) {
+		printk("ZMOD4510 is not ready! Error: %d\n", ret);
 		return;
 	}
+	
+
+
+	// Check if the BME688 is ready
+	// if (!device_is_ready(dev_bme)) {
+	// 	printk("BME688 is not ready!\n");
+	// 	return;
+	// }
 
 	#ifdef ENABLE_LORAWAN
 	LOG_INF("Sending data...");
@@ -224,18 +253,54 @@ void main(void)
 	
 	while (1)
 	{
+		sensor_sample_fetch(dev_zmod);
+		sensor_channel_get(dev_zmod, SENSOR_CHAN_VOC, &o3_ppb);
+		// sensor_channel_get(dev_zmod, SENSOR_CHAN_FAST_AQI, &fast_aqi);
+		// sensor_channel_get(dev_zmod, SENSOR_CHAN_AQI, &aqi);
+
 		//pm_device_action_run(dev_bme, PM_DEVICE_ACTION_TURN_ON);
 
-		sensor_sample_fetch(dev_bme);
-		sensor_channel_get(dev_bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
-		sensor_channel_get(dev_bme, SENSOR_CHAN_PRESS, &press);
-		sensor_channel_get(dev_bme, SENSOR_CHAN_HUMIDITY, &humidity);
-		sensor_channel_get(dev_bme, SENSOR_CHAN_GAS_RES, &gas_res);
+		//zret = zmod4xxx_read_adc_result(&zmod_dev, adc_result);
 
-		printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
-				temp.val1, temp.val2, press.val1, press.val2,
-				humidity.val1, humidity.val2, gas_res.val1,
-				gas_res.val2);
+
+        /* Humidity and temperature measurements are needed for ambient compensation.
+        *  It is highly recommented to have a real humidity and temperature sensor
+        *  for these values! */
+        // humidity_pct = 50.0; // 50% RH
+        // temperature_degc = 20.0; // 20 degC
+
+		// //get sensor results with API
+		// zret = calc_oaq_2nd_gen(&algo_handle, &zmod_dev, adc_result, humidity_pct,
+		// 						temperature_degc, &algo_results);
+
+        // if ((zret != OAQ_2ND_GEN_OK) && (zret != OAQ_2ND_GEN_STABILIZATION)) {
+        //     printf("Error %d when calculating algorithm, exiting program!\n",
+        //            zret);
+        //     return;
+        //     /* OAQ 2nd Gen algorithm skips first samples for sensor stabilization */
+        // } else {
+		printf("*********** Measurements ***********\n");
+		// for (int i = 0; i < 8; i++) {
+		//     printf(" Rmox[%d] = ", i);
+		//     printf("%.3f kOhm\n", algo_results.rmox[i] / 1e3);
+		// }
+		printf(" O3_conc_ppb = %d\n", o3_ppb.val1);
+		// printf(" Fast AQI = %d\n", fast_aqi.val1);
+		// printf(" EPA AQI = %d\n", aqi.val1);
+
+		printf("************************************\n");
+        
+
+		// sensor_sample_fetch(dev_bme);
+		// sensor_channel_get(dev_bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
+		// sensor_channel_get(dev_bme, SENSOR_CHAN_PRESS, &press);
+		// sensor_channel_get(dev_bme, SENSOR_CHAN_HUMIDITY, &humidity);
+		// sensor_channel_get(dev_bme, SENSOR_CHAN_GAS_RES, &gas_res);
+
+		// printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
+		// 		temp.val1, temp.val2, press.val1, press.val2,
+		// 		humidity.val1, humidity.val2, gas_res.val1,
+		// 		gas_res.val2);
 		
 		//pm_device_action_run(dev_bme, PM_DEVICE_ACTION_TURN_OFF);
 
