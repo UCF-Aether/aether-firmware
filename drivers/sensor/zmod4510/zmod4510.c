@@ -76,6 +76,7 @@ static int zmod4510_init(const struct device *dev) {
   }
 
   if (zmod4510_chip_init(dev) < 0) {
+    LOG_ERR("Failed to initialize");
     return -EINVAL;
   }
 
