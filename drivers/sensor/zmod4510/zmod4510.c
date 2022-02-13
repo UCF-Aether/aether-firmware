@@ -6,6 +6,7 @@
 #include "zmod4xxx.h"
 #include "zmod4xxx_types.h"
 #include <drivers/i2c.h>
+#include <drivers/sensor.h>
 #include <init.h>
 #include <kernel.h>
 #include <stdio.h>
@@ -60,7 +61,7 @@ static int zmod4510_chip_init(const struct device *dev) {
   ret = init_oaq_2nd_gen(&data->algo_handle, &zmod_dev);
   if (ret) {
     LOG_ERR("Error initializing the OAQ v2 algorithm: 0x%x", ret);
-    return
+    return ret;
   }
 
   return 0;
