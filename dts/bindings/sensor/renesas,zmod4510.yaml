@@ -1,0 +1,6 @@
+description: |
+    The ZMOD4510 sensor.
+
+compatible: "renesas,zmod4510"
+
+include: i2c-device.yaml

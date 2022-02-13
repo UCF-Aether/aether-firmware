@@ -197,24 +197,24 @@ void main(void)
 {
 	int ret;
 	/* Initialize LoRaWAN if we are using it */
-	#ifdef ENABLE_LORAWAN
-	int ret;
+	// #ifdef ENABLE_LORAWAN
+	// int ret;
+	//
+	// /* Use LoRaWAN OTAA or ABP */
+	// #ifndef USE_ABP
+	// ret = init_lorawan_otaa();
+	// #else
+	// ret = init_lorawan_abp();
+	// #endif
+	//
+	// if (ret < 0)
+	// 	return;
+	// else
+	// 	LOG_INF("Join Success!");
+	//
+	// #endif
 
-	/* Use LoRaWAN OTAA or ABP */
-	#ifndef USE_ABP
-	ret = init_lorawan_otaa();
-	#else
-	ret = init_lorawan_abp();
-	#endif
-
-	if (ret < 0)
-		return;
-	else
-		LOG_INF("Join Success!");
-
-	#endif
-
-	const struct device *dev_zmod = device_get_binding("renesas,zmod4510");
+	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 	struct sensor_value fast_aqi, o3_ppb, aqi;
 
 	// int8_t zret;
@@ -233,13 +233,15 @@ void main(void)
 	// const struct device *dev_bme = DEVICE_DT_GET(DT_INST(0, bosch_bme680));
 	// struct sensor_value temp, press, humidity, gas_res;
 
+  while (!device_is_ready(dev_zmod)) {
+    LOG_INF("Checking if the device is ready");
+    k_sleep(K_MSEC(1000));
+  }
 	ret = device_is_ready(dev_zmod);
 	if (!ret) {
 		printk("ZMOD4510 is not ready! Error: %d\n", ret);
 		return;
 	}
-	
-
 
 	// Check if the BME688 is ready
 	// if (!device_is_ready(dev_bme)) {

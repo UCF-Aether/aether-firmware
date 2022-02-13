@@ -1,0 +1,5 @@
+config ZMOD4510
+	bool "ZMOD4510 Air Quality Sensor"
+	depends on I2C
+	help
+	  Enable driver for ZMOD4510 air quality sensor

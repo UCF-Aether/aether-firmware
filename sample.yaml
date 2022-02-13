@@ -1,8 +1,0 @@
-common:
-   tags: lorawan
-sample:
-   description: The firmware for the Aether sensor node.
-   name: Aether
-tests:
-   samples.lorawan.class_a:
-     platform_allow: lora_e5_dev_board
