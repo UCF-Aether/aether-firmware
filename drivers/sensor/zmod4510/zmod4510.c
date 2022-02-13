@@ -68,6 +68,15 @@ static int zmod4510_chip_init(const struct device *dev)
 		return ret;
 	}
 
+  LOG_HEXDUMP_DBG(data->algo_handle.gcda, sizeof(data->algo_handle.gcda), "gcda");
+  LOG_DBG("initial o3_conc_ppb: %f", data->algo_handle.O3_conc_ppb);
+  LOG_DBG("mox_er: %d", zmod_dev->mox_er);
+  LOG_DBG("mox_lr: %d", zmod_dev->mox_lr);
+  LOG_HEXDUMP_DBG(zmod_dev->meas_conf, sizeof(zmod4xxx_conf), "measuring config");
+
+  // TODO: remove me after testing
+  data->algo_handle.stabilization_sample = 10;
+
 	return 0;
 }
 
@@ -100,6 +109,7 @@ static int zmod4510_channel_get(const struct device *dev, enum sensor_channel ch
 		val->val2 = 0;
 		break;
 	case ZMOD4510_SENSOR_CHAN_FAST_AQI:
+    LOG_DBG("fast aqi: %x", *(unsigned int *)&data->algo_results.FAST_AQI);
 		val->val1 = (int32_t)data->algo_results.FAST_AQI;
 		val->val2 = 0;
 		break;
@@ -166,9 +176,6 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
     return -EINVAL;
   }
   LOG_HEXDUMP_DBG(data->adc_result, ZMOD4510_ADC_DATA_LEN, "adc results");
-  // for (int i = 0; i < ZMOD4510_ADC_DATA_LEN; i++) {
-  //   LOG_DBG("0x%x", data->adc_result[i]);
-  // }
 
   // TODO: Add DT parameter for selecting humidity and temperature sensor to read these values from.
 	/* Humidity and temperature measurements are needed for ambient
@@ -178,9 +185,16 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
 	data->humidity_pct = 50.0; // 50% RH
 	data->temperature_degc = 20.0; // 20 degC
 
+  float rmox;
+  ret = zmod4xxx_calc_rmox(zmod_dev, data->adc_result, &rmox);
+  if (ret) {
+    LOG_ERR("Unable to calculate rmox: %d", ret);
+  }
+  LOG_DBG("rmox: %f", rmox);
+
   LOG_DBG("Calculating oaq");
 	// get sensor results with API
-	ret = calc_oaq_2nd_gen(&data->algo_handle, zmod_dev, &data->adc_result,
+	ret = calc_oaq_2nd_gen(&data->algo_handle, zmod_dev, data->adc_result,
 			       data->humidity_pct, data->temperature_degc, &data->algo_results);
 
 	if ((ret != OAQ_2ND_GEN_OK) && (ret != OAQ_2ND_GEN_STABILIZATION)) {
@@ -189,7 +203,7 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
 	}
 
   if (ret == OAQ_2ND_GEN_STABILIZATION) {
-    LOG_DBG("Warming up");
+    LOG_DBG("Warming up - %d readings until stabilization", data->algo_handle.stabilization_sample);
   }
   else {
     LOG_DBG("Stabilized");
