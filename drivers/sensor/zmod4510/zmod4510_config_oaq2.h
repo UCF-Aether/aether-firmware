@@ -19,7 +19,7 @@
 #define _ZMOD4510_CONFIG_OAQ_2ND_GEN_H_
 
 #include <stdio.h>
-#include <zmod4xxx_types.h>
+#include "zmod4xxx_types.h"
 
 #define INIT    0
 #define MEASURE 1
