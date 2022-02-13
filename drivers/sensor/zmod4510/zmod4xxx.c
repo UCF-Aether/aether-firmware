@@ -16,6 +16,8 @@
  */
 
 #include "zmod4xxx.h"
+// #include <logging/log.h>
+// LOG_MODULE_REGISTER(zmod4xxx, CONFIG_SENSOR_LOG_LEVEL);
 
 zmod4xxx_err zmod4xxx_read_status(zmod4xxx_dev_t *dev, uint8_t *status)
 {
