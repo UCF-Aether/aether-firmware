@@ -14,9 +14,9 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(zmod4510, CONFIG_SENSOR_LOG_LEVEL);
 
-uint8_t zmod4510_reg_read(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
+int8_t zmod4510_reg_read(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
                           uint8_t len);
-uint8_t zmod4510_reg_write(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
+int8_t zmod4510_reg_write(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
                            uint8_t len);
 
 void zmod4510_delay(uint32_t ms) {
@@ -167,12 +167,12 @@ static const struct zmod4510_config zmod4510_config = {
     .bus = I2C_DT_SPEC_INST_GET(0),
 };
 
-uint8_t zmod4510_reg_read(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
+int8_t zmod4510_reg_read(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
                           uint8_t len) {
   return i2c_burst_read_dt(&zmod4510_config.bus, reg_addr, data_buf, len);
 }
 
-uint8_t zmod4510_reg_write(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
+int8_t zmod4510_reg_write(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf,
                            uint8_t len) {
   return i2c_burst_write_dt(&zmod4510_config.bus, reg_addr, data_buf, len);
 }
