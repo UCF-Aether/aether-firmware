@@ -18,7 +18,7 @@
 
 /* Flags for enabling sensors */
 #define ENABLE_ZMOD
-//#define ENABLE_BME
+#define ENABLE_BME
 
 /* Enable or disable LoRaWAN for testing purposes */
 //#define ENABLE_LORAWAN
@@ -211,6 +211,20 @@ void main(void)
 
 	#endif
 
+
+	#ifdef ENABLE_BME
+	/* Declare bme688 device and associated sensor values */
+	//const struct device *dev_bme = DEVICE_DT_GET(DT_INST(0, bosch_bme680));
+  const struct device *dev_bme = DEVICE_DT_GET(DT_NODELABEL(bme680));
+	struct sensor_value temp, press, humidity, gas_res;
+
+  /* Check if the BME688 is ready */
+	if (!device_is_ready(dev_bme)) {
+		printk("BME688 is not ready!\n");
+		return;
+	}
+  #endif
+
   #ifdef ENABLE_ZMOD
   /* Declare zmod4510 device and associated sensor values */
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
@@ -222,21 +236,6 @@ void main(void)
 		return;
 	}
   #endif
-	
-  #ifdef ENABLE_BME
-	/* Declare bme688 device and associated sensor values */
-	//const struct device *dev_bme = DEVICE_DT_GET(DT_INST(0, bosch_bme680));
-  const struct device *dev_bme = DEVICE_DT_GET(DT_NODELABEL(BME680));
-	struct sensor_value temp, press, humidity, gas_res;
-
-  /* Check if the BME688 is ready */
-	if (!device_is_ready(dev_bme)) {
-		printk("BME688 is not ready!\n");
-		return;
-	}
-  #endif
-
-
 
 	#ifdef ENABLE_LORAWAN
 	LOG_INF("Sending data...");
@@ -272,13 +271,6 @@ void main(void)
 		char data[] = {'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'};
 
 		ret = lorawan_send(2, data, sizeof(data), LORAWAN_MSG_CONFIRMED);
-
-		/*
-		 * Note: The stack may return -EAGAIN if the provided data
-		 * length exceeds the maximum possible one for the region and
-		 * datarate. But since we are just sending the same data here,
-		 * we'll just continue.
-		 */
 		if (ret == -EAGAIN) {
 			LOG_ERR("lorawan_send failed: %d. Continuing...", ret);
 			k_sleep(DELAY);
