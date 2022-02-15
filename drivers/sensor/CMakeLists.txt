@@ -1,1 +1,1 @@
-add_subdirectory(zmod4510)
+add_subdirectory_ifdef(CONFIG_ZMOD4510 zmod4510)
