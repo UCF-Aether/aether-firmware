@@ -1,7 +1,8 @@
 /*
  * Aether Sensor Node Firmware
  *
- * Copyright (c) 2022 Ian Wallace <ian.wallace@knights.ucf.edu>, Paul Wood <>
+ * Copyright (c) 2022 Ian Wallace <ian.wallace@knights.ucf.edu>
+ *					  Paul Wood <>
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -22,6 +23,7 @@
 
 /* Enable or disable LoRaWAN for testing purposes */
 //#define ENABLE_LORAWAN
+
 /* Switch between using ABP or OTAA parameters */
 #define USE_ABP
 
@@ -41,6 +43,7 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 					  0x60, 0x51, 0x11, 0xC8 }
 
 #else
+
 /* ABP Parameters */
 #define LORAWAN_DEV_ADDR 0x260CFF4F;
 #define LORAWAN_JOIN_EUI		{ 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,\
@@ -62,13 +65,11 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 /********************** Other Defines ********************************/
 
 #define DELAY K_MSEC(10000)
-
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 
 LOG_MODULE_REGISTER(lorawan_class_a);
 
 /*********************************************************************/
-
 
 static void dl_callback(uint8_t port, bool data_pending,
 			int16_t rssi, int8_t snr,
@@ -243,17 +244,17 @@ void main(void)
 	
 	while (1) {
 
-    #ifdef ENABLE_ZMOD
-    /* Read data from ZMOD4510 */
-		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
-		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
-    LOG_INF("fast aqi: %d", fast_aqi.val1);
-    LOG_INF("o3 (ppb): %d", o3_ppb.val1);
-    k_sleep(K_MSEC(1980));
-    #endif
+		#ifdef ENABLE_ZMOD
+		/* Read data from ZMOD4510 */
+			sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
+			sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
+		LOG_INF("fast aqi: %d", fast_aqi.val1);
+		LOG_INF("o3 (ppb): %d", o3_ppb.val1);
+		k_sleep(K_MSEC(1980));
+		#endif
 
-    #ifdef ENABLE_BME
-    /* Read data from BME688 */
+		#ifdef ENABLE_BME
+		/* Read data from BME688 */
 		sensor_sample_fetch(dev_bme);
 		sensor_channel_get(dev_bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
 		sensor_channel_get(dev_bme, SENSOR_CHAN_PRESS, &press);
