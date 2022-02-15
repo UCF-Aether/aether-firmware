@@ -1,10 +1,10 @@
 &i2c2 {
-	// BME680: bme680@77 {
-	// 	compatible = "bosch,bme680";
-	// 	reg = <0x77>;
-	// 	label = "BME680";
-    //     status="okay";
-	// };
+	bme680: bme680@77 {
+		compatible = "bosch,bme680";
+		reg = <0x77>;
+		label = "cat";
+        status="okay";
+	};
 
 	zmod4510: zmod4510@33 {
 		compatible = "renesas,zmod4510";
