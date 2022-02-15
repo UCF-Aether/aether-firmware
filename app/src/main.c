@@ -246,8 +246,8 @@ void main(void)
 
 		#ifdef ENABLE_ZMOD
 		/* Read data from ZMOD4510 */
-			sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
-			sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
+		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
+		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
 		LOG_INF("fast aqi: %d", fast_aqi.val1);
 		LOG_INF("o3 (ppb): %d", o3_ppb.val1);
 		k_sleep(K_MSEC(1980));
