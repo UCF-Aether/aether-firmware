@@ -228,11 +228,11 @@ void main(void)
   #ifdef ENABLE_ZMOD
   /* Declare zmod4510 device and associated sensor values */
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
-	struct sensor_value fast_aqi, o3_ppb, aqi;
+	struct sensor_value fast_aqi, o3_ppb;
 
   /* Check if the ZMOD4510 is ready */
 	if (!device_is_ready(dev_zmod)) {
-		printk("ZMOD4510 is not ready! Error: %d\n", ret);
+		printk("ZMOD4510 is not ready!");
 		return;
 	}
   #endif

@@ -47,7 +47,7 @@ static int zmod4510_chip_init(const struct device *dev)
 		return ret;
 	}
 
-	ret = zmod4xxx_read_tracking_number(zmod_dev, &data->tracking_number);
+	ret = zmod4xxx_read_tracking_number(zmod_dev, (uint8_t *) &data->tracking_number);
 	if (ret) {
 	  LOG_ERR("Error reading tracking number: %d", ret);
 	  return ret;
@@ -103,13 +103,12 @@ static int zmod4510_channel_get(const struct device *dev, enum sensor_channel ch
 	struct zmod4510_data *data = dev->data;
 
   // TODO: GAS RES channel
-	switch (chan) {
+	switch ((enum zmod4510_sensor_channel) chan) {
 	case ZMOD4510_SENSOR_CHAN_O3:
 		val->val1 = (int32_t)data->algo_results.O3_conc_ppb;
 		val->val2 = 0;
 		break;
 	case ZMOD4510_SENSOR_CHAN_FAST_AQI:
-    LOG_DBG("fast aqi: %x", *(unsigned int *)&data->algo_results.FAST_AQI);
 		val->val1 = (int32_t)data->algo_results.FAST_AQI;
 		val->val2 = 0;
 		break;
