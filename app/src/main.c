@@ -254,10 +254,10 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				humidity.val1, humidity.val2, gas_res.val1,
 				gas_res.val2);
 		#else
+		k_busy_wait((uint32_t) 500000);
 		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
 		#endif
 
-		//k_sleep(SLEEP);
 		k_yield();
 	}
 }
@@ -287,12 +287,11 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		printf("o3 (ppb): %d", o3_ppb.val1);
 
 		#else
-		
+		k_busy_wait((uint32_t) 500000);
 		printf("fast aqi: %d ", 25);
 		printf("o3 (ppb): %d\n", 100);
-
 		#endif
-		k_sleep(SLEEP);
+
 		k_yield();
 	}
 }
@@ -300,8 +299,9 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 void pm_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	while (1) {
+		/* Simulate getting sensor sample, delay */
+		k_busy_wait((uint32_t) 500000);
 		printf("PM sensor sample\n");
-		//k_sleep(SLEEP);
 		k_yield();
 	}
 }
@@ -343,7 +343,6 @@ void usb_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	while (1) {
 		printf("Waiting for USB commands...\n");
-		//k_sleep(SLEEP);
 		k_yield();
 	}
 }
