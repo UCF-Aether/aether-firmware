@@ -9,11 +9,12 @@
 
 #include <device.h>
 #include <drivers/sensor.h>
+#include <drivers/sensor/zmod4510.h>
+#include <kernel.h>
 #include <logging/log.h>
 #include <lorawan/lorawan.h>
 #include <stdio.h>
 #include <zephyr.h>
-#include <drivers/sensor/zmod4510.h>
 
 /*************************** Thread Definitions *******************************/
 #define BME_STACK_SIZE		1024
@@ -54,6 +55,7 @@ struct k_thread usb_thread_data;
 //#define ZMOD_REAL_DATA
 //#define BME_REAL_DATA
 #define PM_REAL_DATA
+//s#define LORA_REAL_DATA
 
 /******************** LoRaWAN Configuration Parameters ************************/
 
@@ -105,6 +107,8 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 LOG_MODULE_REGISTER(lorawan_class_a);
 
 /******************************************************************************/
+
+K_FIFO_DEFINE(lora_send_fifo);
 
 static void dl_callback(uint8_t port, bool data_pending,
 			int16_t rssi, int8_t snr,
@@ -228,6 +232,7 @@ int init_lorawan_abp()
 void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	#ifdef BME_REAL_DATA
+
 	/* Declare bme688 device and associated sensor values */
   	const struct device *dev_bme = DEVICE_DT_GET(DT_NODELABEL(bme680));
 	struct sensor_value temp, press, humidity, gas_res;
@@ -237,11 +242,9 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 		printk("BME688 is not ready!\n");
 		return;
 	}
-	#endif
 
 	while (1) {
 
-		#ifdef BME_REAL_DATA
 		/* Read data from BME688 */
 		sensor_sample_fetch(dev_bme);
 		sensor_channel_get(dev_bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
@@ -253,16 +256,28 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				temp.val1, temp.val2, press.val1, press.val2,
 				humidity.val1, humidity.val2, gas_res.val1,
 				gas_res.val2);
-		#else
-		k_busy_wait((uint32_t) 500000);
-		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
-		#endif
 
 		k_yield();
 	}
+
+	#else
+
+	/* Simulate reading data from sensor when no sensor connected */
+	while (1) {
+		k_busy_wait((uint32_t) 500000);
+		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
+
+		int packet = 44;
+		k_fifo_put(&lora_send_fifo, &packet);
+
+		k_yield();
+	}
+
+	#endif
 }
 
 void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
+
 	#ifdef ZMOD_REAL_DATA
 	int ret;
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
@@ -274,45 +289,52 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		return;
 	}
 
-	#endif
-
 	while (1) {
 		/* Read data from ZMOD4510 */
-
-		#ifdef ZMOD_REAL_DATA
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
 
 		printf("fast aqi: %d", fast_aqi.val1);
 		printf("o3 (ppb): %d", o3_ppb.val1);
+		k_yield();
+	}
 
-		#else
+	#else
+
+	/* Simulate reading data from sensor when no sensor connected */
+	while (1) {
 		k_busy_wait((uint32_t) 500000);
 		printf("fast aqi: %d ", 25);
 		printf("o3 (ppb): %d\n", 100);
-		#endif
-
 		k_yield();
 	}
+
+	#endif
 }
 
 void pm_entry_point(void *arg1, void *arg2, void *arg3) {
 
+	#ifdef PM_REAL_DATA
+	#else
+
+	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
-		/* Simulate getting sensor sample, delay */
 		k_busy_wait((uint32_t) 500000);
 		printf("PM sensor sample\n");
 		k_yield();
 	}
+	#endif
 }
 
 void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 	int ret;
 	
+	#ifdef LORA_REAL_DATA
+
 	#ifdef USE_ABP
-	init_lorawan_abp();
+	ret = init_lorawan_abp();
 	#else
-	init_lorawan_otaa();
+	ret = init_lorawan_otaa();
 	#endif
 
 	if (ret < 0)
@@ -337,6 +359,17 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		k_yield();
 	}
+
+	#else
+	/* Simulate sending off LoRa packets */
+	while (1) {
+		printf("Sending message...\n");
+		k_busy_wait((uint32_t) 500000);
+		printf("Message sent!\n");
+		k_yield();
+	}
+
+	#endif
 }
 
 void usb_entry_point(void *arg1, void *arg2, void *arg3) {
