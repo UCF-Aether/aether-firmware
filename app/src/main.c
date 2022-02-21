@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/* Zephyr Headers */
 #include <device.h>
 #include <drivers/sensor.h>
 #include <drivers/sensor/zmod4510.h>
@@ -16,33 +17,11 @@
 #include <stdio.h>
 #include <zephyr.h>
 
-/*************************** Thread Definitions *******************************/
-#define BME_STACK_SIZE		1024
-#define ZMOD_STACK_SIZE		1024
-#define PM_STACK_SIZE		1024
-#define LORA_STACK_SIZE		1024
-#define USB_STACK_SIZE		1024
-
-#define NORMAL_PRIORITY		5
-#define HIGH_PRIORITY		3
-
-K_THREAD_STACK_DEFINE(bme_stack_area, BME_STACK_SIZE);
-K_THREAD_STACK_DEFINE(zmod_stack_area, ZMOD_STACK_SIZE);
-K_THREAD_STACK_DEFINE(pm_stack_area, PM_STACK_SIZE);
-K_THREAD_STACK_DEFINE(lora_stack_area, LORA_STACK_SIZE);
-K_THREAD_STACK_DEFINE(usb_stack_area, USB_STACK_SIZE);
-
-extern void bme_entry_point(void *, void *, void *);
-extern void zmod_entry_point(void *, void *, void *);
-extern void pm_entry_point(void *, void *, void *);
-extern void lora_entry_point(void *, void *, void *);
-extern void usb_entry_point(void *, void *, void *);
-
-struct k_thread bme_thread_data;
-struct k_thread zmod_thread_data;
-struct k_thread pm_thread_data;
-struct k_thread lora_thread_data;
-struct k_thread usb_thread_data;
+/* Aether Headers */
+#include "cayenne.h"
+#include "lora.h"
+#include "delays.h"
+#include "threads.h"
 
 /*************************** Sensor Configuration *****************************/
 
@@ -54,61 +33,16 @@ struct k_thread usb_thread_data;
 /* Flags to use real or fake sensor data */
 //#define ZMOD_REAL_DATA
 //#define BME_REAL_DATA
-#define PM_REAL_DATA
-//s#define LORA_REAL_DATA
-
-/******************** LoRaWAN Configuration Parameters ************************/
-
-/* Enable or disable LoRaWAN for testing purposes */
-//#define ENABLE_LORAWAN
-
-/* Switch between using ABP or OTAA parameters */
-#define USE_ABP
-
-#define DEFAULT_RADIO_NODE DT_ALIAS(lora0)
-BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
-	     "No default LoRa radio specified in DT");
-#define DEFAULT_RADIO DT_LABEL(DEFAULT_RADIO_NODE)
-
-#ifndef USE_ABP
-/* OTAA Parameters */
-#define LORAWAN_APP_EUI			{ 0x2C, 0xF7, 0xF1, 0x20, 0x32, 0x30,\
-					  0x4D, 0xE8 }
-#define LORAWAN_JOIN_EUI		{ 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,\
-					  0x00, 0x06 }
-#define LORAWAN_APP_KEY			{ 0xB4, 0x4E, 0x83, 0x6D, 0x99, 0x06,\
-					  0x79, 0xC8, 0x78, 0x03, 0x1A, 0x32,\
-					  0x60, 0x51, 0x11, 0xC8 }
-
-#else
-
-/* ABP Parameters */
-#define LORAWAN_DEV_ADDR 0x260CFF4F;
-#define LORAWAN_JOIN_EUI		{ 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,\
-					  0x00, 0x06 }
-#define LORAWAN_DEV_EUI			{ 0x2C, 0xF7, 0xF1, 0x20, 0x32, 0x30,\
-					  0x4D, 0xE8}					  
-#define LORAWAN_APP_EUI			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,\
-					  0x00, 0x00}
-#define LORAWAN_APP_SKEY		{ 0x88, 0x03, 0x0F, 0x9D, 0x09, 0x0D,\
-					  0x09, 0xC0, 0x44, 0x63, 0x20, 0x4F, 0xC0, 0xE8,\
-					  0x2C, 0xF5}
-#define LORAWAN_NWK_SKEY		{ 0x06, 0xB1, 0x13, 0xEE, 0x65, 0x09,\
-					  0xAA, 0xFB, 0x91, 0x75, 0xC2, 0x6E, 0xF2, 0x67,\
-					  0x91, 0x92}
-#endif
+//#define PM_REAL_DATA
+//#define LORA_REAL_DATA
 
 /**************************** Other Defines ***********************************/
 
-#define DELAY K_MSEC(10000)
-#define SLEEP K_MSEC(5000)
-#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
-
 LOG_MODULE_REGISTER(lorawan_class_a);
 
-/******************************************************************************/
-
 K_FIFO_DEFINE(lora_send_fifo);
+
+/******************************************************************************/
 
 static void dl_callback(uint8_t port, bool data_pending,
 			int16_t rssi, int8_t snr,
@@ -267,8 +201,19 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 		k_busy_wait((uint32_t) 500000);
 		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
 
-		int packet = 44;
-		k_fifo_put(&lora_send_fifo, &packet);
+		intptr_t packet[10];
+
+		packet[1] = 8;
+		packet[2] = 20; /* temp.val1 */
+		packet[3] = 30;
+		packet[4] = 22;
+		packet[5] = 34;
+		packet[6] = 66;
+		packet[7] = 99;
+		packet[8] = 31;
+		packet[9] = 11;
+
+		k_fifo_put(&lora_send_fifo, packet);
 
 		k_yield();
 	}
@@ -361,9 +306,21 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 	}
 
 	#else
+	int data_item;
+
 	/* Simulate sending off LoRa packets */
 	while (1) {
-		printf("Sending message...\n");
+		intptr_t *data_item;
+
+		data_item = k_fifo_get(&lora_send_fifo, FIFO_DELAY);
+
+		/* If there is nothing in the FIFO, yield the thread */
+		while ((data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT)) == NULL) {
+			k_yield();
+		}
+
+
+		printf("Sending message: %d, %d\n", data_item[1], data_item[2]);
 		k_busy_wait((uint32_t) 500000);
 		printf("Message sent!\n");
 		k_yield();
@@ -412,6 +369,8 @@ void main()
 									usb_entry_point,
 									NULL, NULL, NULL,
 									NORMAL_PRIORITY, 0, K_NO_WAIT);
+
+	k_fifo_init(&lora_send_fifo);
 
 	#ifdef ENABLE_BME
 	k_thread_start(&bme_thread_data);
