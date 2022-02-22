@@ -12,6 +12,11 @@
 #define CAYENNE_CHANNEL_ZMOD    1
 #define CAYENNE_CHANNEL_PM      2
 
+/* Cayenne total packet size */
+#define CAYENNE_TOTAL_SIZE_BME  16
+#define CAYENNE_TOTAL_SIZE_ZMOD 6
+#define CAYENNE_TOTAL_SIZE_PM   0
+
 /* Cayenne data types */
 #define CAYENNE_TYPE_TEMP_ZEPHYR        0
 #define CAYENNE_TYPE_PRESSURE_ZEPHYR    1
