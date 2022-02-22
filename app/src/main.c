@@ -15,6 +15,7 @@
 #include <logging/log.h>
 #include <lorawan/lorawan.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <zephyr.h>
 
 /* Aether Headers */
@@ -32,7 +33,7 @@
 
 /* Flags to use real or fake sensor data */
 //#define ZMOD_REAL_DATA
-//#define BME_REAL_DATA
+#define BME_REAL_DATA
 //#define PM_REAL_DATA
 //#define LORA_REAL_DATA
 
@@ -191,6 +192,32 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				humidity.val1, humidity.val2, gas_res.val1,
 				gas_res.val2);
 
+		
+
+		printf("temp.val1: %d %d %d %d\n", temp_val1[3], temp_val1[2], temp_val1[1], temp_val1[0]);
+
+		intptr_t packet[17];
+
+		packet[1] = CAYENNE_CHANNEL_BME;
+		packet[2] = CAYENNE_SIZE_TEMP_ZEPHYR;
+		packet[3] = temp.val1;
+		packet[4]
+		packet[4] = temp.val2;
+		packet[5] = CAYENNE_CHANNEL_BME;
+		packet[6] = CAYENNE_TYPE_PRESSURE_ZEPHYR;
+		packet[7] = press.val1;
+		packet[8] = press.val2;
+		packet[9] = CAYENNE_CHANNEL_BME;
+		packet[10] = CAYENNE_TYPE_HUMIDITY_ZEPHYR;
+		packet[11] = humidity.val1;
+		packet[12] = humidity.val2;
+		packet[13] = CAYENNE_CHANNEL_BME;
+		packet[14] = CAYENNE_SIZE_GAS_RES_ZEPHYR;
+		packet[15] = gas_res.val1;
+		packet[16] = gas_res.val2;
+
+		k_fifo_put(&lora_send_fifo, packet);		
+
 		k_yield();
 	}
 
@@ -201,17 +228,24 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 		k_busy_wait((uint32_t) 500000);
 		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
 
-		intptr_t packet[10];
+		intptr_t packet[17];
 
-		packet[1] = 8;
-		packet[2] = 20; /* temp.val1 */
+		packet[1] = CAYENNE_CHANNEL_BME;
+		packet[2] = CAYENNE_SIZE_TEMP_ZEPHYR; /* temp.val1 */
 		packet[3] = 30;
 		packet[4] = 22;
-		packet[5] = 34;
-		packet[6] = 66;
+		packet[5] = CAYENNE_CHANNEL_BME;
+		packet[6] = CAYENNE_TYPE_PRESSURE_ZEPHYR;
 		packet[7] = 99;
 		packet[8] = 31;
-		packet[9] = 11;
+		packet[9] = CAYENNE_CHANNEL_BME;
+		packet[10] = CAYENNE_TYPE_HUMIDITY_ZEPHYR;
+		packet[11] = 34;
+		packet[12] = 11;
+		packet[13] = CAYENNE_CHANNEL_BME;
+		packet[14] = CAYENNE_SIZE_GAS_RES_ZEPHYR;
+		packet[15] = 66;
+		packet[16] = 18;
 
 		k_fifo_put(&lora_send_fifo, packet);
 
@@ -312,15 +346,30 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 	while (1) {
 		intptr_t *data_item;
 
-		data_item = k_fifo_get(&lora_send_fifo, FIFO_DELAY);
-
 		/* If there is nothing in the FIFO, yield the thread */
 		while ((data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT)) == NULL) {
 			k_yield();
 		}
 
+		uint8_t data_item_len = 0;
+		if (data_item[1] == CAYENNE_CHANNEL_BME) {
+			data_item_len = CAYENNE_TOTAL_SIZE_BME;
+		} else if (data_item[1] == CAYENNE_CHANNEL_ZMOD) {
+			data_item_len = CAYENNE_TOTAL_SIZE_ZMOD;
+		} else if (data_item[1] == CAYENNE_CHANNEL_PM) {
+			data_item_len = CAYENNE_CHANNEL_PM;
+		}
 
-		printf("Sending message: %d, %d\n", data_item[1], data_item[2]);
+		uint8_t *send_data = malloc(data_item_len);
+		for (int i = 1; i <= data_item_len; i++) {
+			send_data[i-1] = data_item[i];
+		}
+
+		printf("Sending message: ");
+		for (int i = 0; i < data_item_len; i++)
+			printf("%d ", send_data[i]);
+		printf("\n");
+
 		k_busy_wait((uint32_t) 500000);
 		printf("Message sent!\n");
 		k_yield();
