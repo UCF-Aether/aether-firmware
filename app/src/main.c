@@ -162,6 +162,36 @@ int init_lorawan_abp()
 }
 #endif
 
+/**************************** Payload Functions *******************************/
+
+void create_cayenne_segment(intptr_t *packet, int val1, int val2, int index, 
+							int channel, int dtype)
+{
+	int i;
+
+	packet[index] = channel;
+	packet[index+1] = dtype;
+
+	uint8_t *val_bytes1 = (uint8_t *) &val1;
+	for (i = 0; i < 4; i++)
+		packet[index+2+i] = val_bytes1[i];
+
+	uint8_t *val_bytes2 = (uint8_t *) &val2;
+	for (i = 0; i < 4; i++)
+		packet[index+6+i] = val_bytes2[i];
+}
+
+void create_bme_payload(intptr_t *packet, int t1, int t2, int p1, int p2,
+						int h1, int h2, int g1, int g2)
+{
+	int i;
+
+	create_cayenne_segment(packet, t1, t2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_TEMP_ZEPHYR);
+	create_cayenne_segment(packet, p1, p2, 11, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_PRESSURE_ZEPHYR);
+	create_cayenne_segment(packet, h1, h2, 21, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_HUMIDITY_ZEPHYR);
+	create_cayenne_segment(packet, g1, g2, 31, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_GAS_RES_ZEPHYR);
+}
+
 /************************** Thread Entry Functions ****************************/
 
 void bme_entry_point(void *arg1, void *arg2, void *arg3) {
@@ -179,6 +209,7 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 	}
 
 	while (1) {
+		intptr_t packet[CAYENNE_TOTAL_SIZE_BME+1];
 
 		/* Read data from BME688 */
 		sensor_sample_fetch(dev_bme);
@@ -192,29 +223,17 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				humidity.val1, humidity.val2, gas_res.val1,
 				gas_res.val2);
 
+		create_bme_payload(packet, temp.val1, temp.val2, press.val1, press.val2,
+						   	humidity.val1, humidity.val2, gas_res.val1,
+							gas_res.val2);
 		
-
-		printf("temp.val1: %d %d %d %d\n", temp_val1[3], temp_val1[2], temp_val1[1], temp_val1[0]);
-
-		intptr_t packet[17];
-
-		packet[1] = CAYENNE_CHANNEL_BME;
-		packet[2] = CAYENNE_SIZE_TEMP_ZEPHYR;
-		packet[3] = temp.val1;
-		packet[4]
-		packet[4] = temp.val2;
-		packet[5] = CAYENNE_CHANNEL_BME;
-		packet[6] = CAYENNE_TYPE_PRESSURE_ZEPHYR;
-		packet[7] = press.val1;
-		packet[8] = press.val2;
-		packet[9] = CAYENNE_CHANNEL_BME;
-		packet[10] = CAYENNE_TYPE_HUMIDITY_ZEPHYR;
-		packet[11] = humidity.val1;
-		packet[12] = humidity.val2;
-		packet[13] = CAYENNE_CHANNEL_BME;
-		packet[14] = CAYENNE_SIZE_GAS_RES_ZEPHYR;
-		packet[15] = gas_res.val1;
-		packet[16] = gas_res.val2;
+		printf("BME packet: ");
+		for (int i = 1; i < CAYENNE_TOTAL_SIZE_BME; i++)
+			if (i%10 == 0)
+				printf("%d | ", (int) packet[i]);
+			else
+				printf("%d ", (int) packet[i]);
+		printf("\n");
 
 		k_fifo_put(&lora_send_fifo, packet);		
 
@@ -225,27 +244,22 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
+		intptr_t packet[CAYENNE_TOTAL_SIZE_BME+1];
+
 		k_busy_wait((uint32_t) 500000);
 		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
 
-		intptr_t packet[17];
+		create_bme_payload(packet, temp.val1, temp.val2, press.val1, press.val2,
+						   	humidity.val1, humidity.val2, gas_res.val1,
+							gas_res.val2);
 
-		packet[1] = CAYENNE_CHANNEL_BME;
-		packet[2] = CAYENNE_SIZE_TEMP_ZEPHYR; /* temp.val1 */
-		packet[3] = 30;
-		packet[4] = 22;
-		packet[5] = CAYENNE_CHANNEL_BME;
-		packet[6] = CAYENNE_TYPE_PRESSURE_ZEPHYR;
-		packet[7] = 99;
-		packet[8] = 31;
-		packet[9] = CAYENNE_CHANNEL_BME;
-		packet[10] = CAYENNE_TYPE_HUMIDITY_ZEPHYR;
-		packet[11] = 34;
-		packet[12] = 11;
-		packet[13] = CAYENNE_CHANNEL_BME;
-		packet[14] = CAYENNE_SIZE_GAS_RES_ZEPHYR;
-		packet[15] = 66;
-		packet[16] = 18;
+		printf("BME packet: ");
+		for (int i = 1; i < CAYENNE_TOTAL_SIZE_BME; i++)
+			if (i%10 == 0)
+				printf("%d | ", (int) packet[i]);
+			else
+				printf("%d ", (int) packet[i]);
+		printf("\n");
 
 		k_fifo_put(&lora_send_fifo, packet);
 
@@ -351,6 +365,7 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 			k_yield();
 		}
 
+		/* Get the size of the packet based on the first channel byte. */
 		uint8_t data_item_len = 0;
 		if (data_item[1] == CAYENNE_CHANNEL_BME) {
 			data_item_len = CAYENNE_TOTAL_SIZE_BME;
@@ -360,6 +375,7 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 			data_item_len = CAYENNE_CHANNEL_PM;
 		}
 
+		/* Convert the packet into a send-able packet composed of bytes */
 		uint8_t *send_data = malloc(data_item_len);
 		for (int i = 1; i <= data_item_len; i++) {
 			send_data[i-1] = data_item[i];
@@ -369,6 +385,8 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 		for (int i = 0; i < data_item_len; i++)
 			printf("%d ", send_data[i]);
 		printf("\n");
+
+		free(send_data);
 
 		k_busy_wait((uint32_t) 500000);
 		printf("Message sent!\n");
