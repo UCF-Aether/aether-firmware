@@ -32,16 +32,19 @@
 #define ENABLE_PM
 
 /* Flags to use real or fake sensor data */
-//#define ZMOD_REAL_DATA
+#define ZMOD_REAL_DATA
 #define BME_REAL_DATA
 //#define PM_REAL_DATA
-//#define LORA_REAL_DATA
+#define LORA_REAL_DATA
 
 /**************************** Other Defines ***********************************/
 
 LOG_MODULE_REGISTER(lorawan_class_a);
 
 K_FIFO_DEFINE(lora_send_fifo);
+
+/*************************** Global Variables *********************************/
+k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
 
 /******************************************************************************/
 
@@ -82,13 +85,13 @@ int init_lorawan_otaa()
 
 	lora_dev = device_get_binding(DEFAULT_RADIO);
 	if (!lora_dev) {
-		LOG_ERR("%s Device not found", DEFAULT_RADIO);
+		LOG_INF("%s Device not found", DEFAULT_RADIO);
 		return ret;
 	}
 
 	ret = lorawan_start();
 	if (ret < 0) {
-		LOG_ERR("lorawan_start failed: %d", ret);
+		LOG_INF("lorawan_start failed: %d", ret);
 		return ret;
 	}
 
@@ -104,7 +107,7 @@ int init_lorawan_otaa()
 	LOG_INF("Joining network over OTAA");
 	ret = lorawan_join(&join_cfg);
 	if (ret < 0) {
-		LOG_ERR("lorawan_join_network failed: %d", ret);
+		LOG_INF("lorawan_join_network failed: %d", ret);
 		return ret;
 	}
 
@@ -131,13 +134,13 @@ int init_lorawan_abp()
 
 	lora_dev = device_get_binding(DEFAULT_RADIO);
 	if (!lora_dev) {
-		LOG_ERR("%s Device not found", DEFAULT_RADIO);
+		printf("%s Device not found\n", DEFAULT_RADIO);
 		return ret;
 	}
 
 	ret = lorawan_start();
 	if (ret < 0) {
-		LOG_ERR("lorawan_start failed: %d", ret);
+		printf("lorawan_start failed: %d\n", ret);
 		return ret;
 	}
 
@@ -151,10 +154,10 @@ int init_lorawan_abp()
 	join_cfg.abp.app_skey = app_skey;
 	join_cfg.abp.nwk_skey = nwk_skey;
 
-	LOG_INF("Joining network over ABP");
+	printf("Joining network over ABP\n");
 	ret = lorawan_join(&join_cfg);
 	if (ret < 0) {
-		LOG_ERR("lorawan_join_network failed: %d", ret);
+		printf("lorawan_join_network failed: %d\n", ret);
 		return ret;
 	}
 
@@ -321,34 +324,74 @@ void pm_entry_point(void *arg1, void *arg2, void *arg3) {
 
 void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 	int ret;
-	
+
 	#ifdef LORA_REAL_DATA
 
-	#ifdef USE_ABP
-	ret = init_lorawan_abp();
-	#else
-	ret = init_lorawan_otaa();
-	#endif
-
-	if (ret < 0)
-		return;
-	else
-		LOG_INF("Join Success!");
-
+	/* Forever attempt to join a LoRaWAN network, yield after failed attempt */
 	while (1) {
-		char data[] = {'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'};
 
-		ret = lorawan_send(2, data, sizeof(data), LORAWAN_MSG_CONFIRMED);
-		if (ret == -EAGAIN) {
-			LOG_ERR("lorawan_send failed: %d. Continuing...", ret);
-			k_sleep(DELAY);
-			continue;
-		}
+		#ifdef USE_ABP
+		ret = init_lorawan_abp();
+		#else
+		ret = init_lorawan_otaa();
+		#endif
 
 		if (ret < 0) {
-			LOG_ERR("lorawan_send failed: %d", ret);
-			return;
+			printf("Join Failed!\n");
+			k_msleep(3000);
+			continue;
+		} else {
+			printf("Join Success!\n");
+			break;
 		}
+
+	}
+
+	while (1) {
+		intptr_t *data_item;
+		printf("Main loop lora\n\n");
+
+		/* If there is nothing in the FIFO, yield the thread */
+		while ((data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT)) == NULL) {
+			k_msleep(1000);
+		}
+
+		/* Get the size of the packet based on the first channel byte. */
+		uint8_t data_item_len = 0;
+		if (data_item[1] == CAYENNE_CHANNEL_BME) {
+			data_item_len = CAYENNE_TOTAL_SIZE_BME;
+		} else if (data_item[1] == CAYENNE_CHANNEL_ZMOD) {
+			data_item_len = CAYENNE_TOTAL_SIZE_ZMOD;
+		} else if (data_item[1] == CAYENNE_CHANNEL_PM) {
+			data_item_len = CAYENNE_CHANNEL_PM;
+		}
+
+		/* Convert the packet into a send-able packet composed of bytes */
+		uint8_t *send_data = malloc(data_item_len);
+		for (int i = 1; i <= data_item_len; i++) {
+			send_data[i-1] = data_item[i];
+		}
+
+		printf("LoRa Sending message: ");
+		for (int i = 0; i < data_item_len; i++)
+			printf("%d ", send_data[i]);
+		printf("\n");
+
+		while (1) {
+			ret = lorawan_send(2, send_data, data_item_len, LORAWAN_MSG_CONFIRMED);
+			if (ret == -EAGAIN) {
+				LOG_ERR("lorawan_send failed: %d. Continuing...\n", ret);
+				k_sleep(DELAY);
+				continue;
+			}
+
+			if (ret < 0) {
+				LOG_ERR("lorawan_send failed: %d\n", ret);
+				return;
+			}
+		}
+
+		free(send_data);
 
 		k_yield();
 	}
@@ -407,35 +450,35 @@ void usb_entry_point(void *arg1, void *arg2, void *arg3) {
 void main() 
 {
 	/* Initialize Threads */
-	k_tid_t bme_tid = k_thread_create(&bme_thread_data, bme_stack_area,
-									K_THREAD_STACK_SIZEOF(bme_stack_area),
-									bme_entry_point,
-									NULL, NULL, NULL,
-									NORMAL_PRIORITY, 0, K_NO_WAIT);
+	bme_tid = k_thread_create(&bme_thread_data, bme_stack_area,
+								K_THREAD_STACK_SIZEOF(bme_stack_area),
+								bme_entry_point,
+								NULL, NULL, NULL,
+								NORMAL_PRIORITY, 0, K_NO_WAIT);
 
-	k_tid_t zmod_tid = k_thread_create(&zmod_thread_data, zmod_stack_area,
-									K_THREAD_STACK_SIZEOF(zmod_stack_area),
-									zmod_entry_point,
-									NULL, NULL, NULL,
-									NORMAL_PRIORITY, 0, K_NO_WAIT);
+	zmod_tid = k_thread_create(&zmod_thread_data, zmod_stack_area,
+								K_THREAD_STACK_SIZEOF(zmod_stack_area),
+								zmod_entry_point,
+								NULL, NULL, NULL,
+								NORMAL_PRIORITY, 0, K_NO_WAIT);
 
-	k_tid_t pm_tid = k_thread_create(&pm_thread_data, pm_stack_area,
-									K_THREAD_STACK_SIZEOF(pm_stack_area),
-									pm_entry_point,
-									NULL, NULL, NULL,
-									NORMAL_PRIORITY, 0, K_NO_WAIT);
+	pm_tid = k_thread_create(&pm_thread_data, pm_stack_area,
+								K_THREAD_STACK_SIZEOF(pm_stack_area),
+								pm_entry_point,
+								NULL, NULL, NULL,
+								NORMAL_PRIORITY, 0, K_NO_WAIT);
 
-	k_tid_t lora_tid = k_thread_create(&lora_thread_data, lora_stack_area,
-									K_THREAD_STACK_SIZEOF(lora_stack_area),
-									lora_entry_point,
-									NULL, NULL, NULL,
-									NORMAL_PRIORITY, 0, K_NO_WAIT);
+	lora_tid = k_thread_create(&lora_thread_data, lora_stack_area,
+								K_THREAD_STACK_SIZEOF(lora_stack_area),
+								lora_entry_point,
+								NULL, NULL, NULL,
+								HIGH_PRIORITY, 0, K_NO_WAIT);
 
-	k_tid_t usb_tid = k_thread_create(&usb_thread_data, usb_stack_area,
-									K_THREAD_STACK_SIZEOF(usb_stack_area),
-									usb_entry_point,
-									NULL, NULL, NULL,
-									NORMAL_PRIORITY, 0, K_NO_WAIT);
+	usb_tid = k_thread_create(&usb_thread_data, usb_stack_area,
+								K_THREAD_STACK_SIZEOF(usb_stack_area),
+								usb_entry_point,
+								NULL, NULL, NULL,
+								NORMAL_PRIORITY, 0, K_NO_WAIT);
 
 	k_fifo_init(&lora_send_fifo);
 
