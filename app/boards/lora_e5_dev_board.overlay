@@ -2,7 +2,7 @@
 	bme680: bme680@77 {
 		compatible = "bosch,bme680";
 		reg = <0x77>;
-		label = "cat";
+		label = "BME680";
         status="okay";
 	};
 
