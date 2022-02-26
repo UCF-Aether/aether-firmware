@@ -32,10 +32,10 @@
 #define ENABLE_PM
 
 /* Flags to use real or fake sensor data */
-#define ZMOD_REAL_DATA
+//#define ZMOD_REAL_DATA
 #define BME_REAL_DATA
 //#define PM_REAL_DATA
-#define LORA_REAL_DATA
+//#define LORA_REAL_DATA
 
 /**************************** Other Defines ***********************************/
 
@@ -167,7 +167,7 @@ int init_lorawan_abp()
 
 /**************************** Payload Functions *******************************/
 
-void create_cayenne_segment(intptr_t *packet, int val1, int val2, int index, 
+void create_cayenne_segment_2int(intptr_t *packet, int val1, int val2, int index, 
 							int channel, int dtype)
 {
 	int i;
@@ -184,15 +184,32 @@ void create_cayenne_segment(intptr_t *packet, int val1, int val2, int index,
 		packet[index+6+i] = val_bytes2[i];
 }
 
-void create_bme_payload(intptr_t *packet, int t1, int t2, int p1, int p2,
-						int h1, int h2, int g1, int g2)
+void create_cayenne_segment_1int(intptr_t *packet, int val1, int index, 
+									int int_size, int channel, int dtype)
 {
 	int i;
 
-	create_cayenne_segment(packet, t1, t2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_TEMP_ZEPHYR);
-	create_cayenne_segment(packet, p1, p2, 11, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_PRESSURE_ZEPHYR);
-	create_cayenne_segment(packet, h1, h2, 21, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_HUMIDITY_ZEPHYR);
-	create_cayenne_segment(packet, g1, g2, 31, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_GAS_RES_ZEPHYR);
+	packet[index] = channel;
+	packet[index+1] = dtype;
+
+	uint8_t *val_bytes1 = (uint8_t *) &val1;
+	for (i = 0; i < int_size; i++)
+		packet[index+2+i] = val_bytes1[i];
+}
+
+void create_bme_payload(intptr_t *packet, int t1, int t2, int p1, int p2,
+						int h1, int h2, int g1, int g2)
+{
+	create_cayenne_segment_2int(packet, t1, t2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_TEMP_ZEPHYR);
+	create_cayenne_segment_2int(packet, p1, p2, 11, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_PRESSURE_ZEPHYR);
+	create_cayenne_segment_2int(packet, h1, h2, 21, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_HUMIDITY_ZEPHYR);
+	create_cayenne_segment_2int(packet, g1, g2, 31, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_GAS_RES_ZEPHYR);
+}
+
+void create_zmod_payload(intptr_t *packet, int o3_val, int fast_aqi_val)
+{
+	create_cayenne_segment_1int(packet, o3_val, 1, 4, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_O3_PPB);
+	create_cayenne_segment_1int(packet, fast_aqi_val, 7, 2, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_FAST_AQI);
 }
 
 /************************** Thread Entry Functions ****************************/
@@ -257,7 +274,7 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 							gas_res.val2);
 
 		printf("BME packet: ");
-		for (int i = 1; i < CAYENNE_TOTAL_SIZE_BME; i++)
+		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_BME; i++)
 			if (i%10 == 0)
 				printf("%d | ", (int) packet[i]);
 			else
@@ -275,6 +292,7 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	#ifdef ZMOD_REAL_DATA
+	printf("zmod real\n");
 	int ret;
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 	struct sensor_value fast_aqi, o3_ppb;
@@ -286,22 +304,55 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 	}
 
 	while (1) {
+		intptr_t packet[CAYENNE_TOTAL_SIZE_ZMOD+1];
+
 		/* Read data from ZMOD4510 */
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
 
 		printf("fast aqi: %d", fast_aqi.val1);
 		printf("o3 (ppb): %d", o3_ppb.val1);
+
+		create_zmod_payload(packet, o3_ppb.val1, fast_aqi.val1);
+
+		printf("ZMOD packet: ");
+		for (int i = 1; i < CAYENNE_TOTAL_SIZE_ZMOD; i++)
+			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD-1)
+				printf("%d | ", (int) packet[i]);
+			else
+				printf("%d ", (int) packet[i]);
+		printf("\n");
+
+		k_fifo_put(&lora_send_fifo, packet);
+
 		k_yield();
 	}
 
 	#else
 
+	int o3_ppb = 100;
+	int fast_aqi = 25;
+
 	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
+		intptr_t packet[CAYENNE_TOTAL_SIZE_ZMOD+1];
+
 		k_busy_wait((uint32_t) 500000);
-		printf("fast aqi: %d ", 25);
-		printf("o3 (ppb): %d\n", 100);
+		printf("fast aqi: %d ", o3_ppb);
+		printf("o3 (ppb): %d\n", fast_aqi);
+
+		create_zmod_payload(packet, o3_ppb, fast_aqi);
+
+		printf("ZMOD packet: ");
+		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_ZMOD; i++)
+			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD)
+				printf("%d | ", (int) packet[i]);
+			else
+				printf("%d ", (int) packet[i]);
+		printf("\n");
+
+		k_fifo_put(&lora_send_fifo, packet);
+
 		k_yield();
 	}
 
@@ -472,7 +523,7 @@ void main()
 								K_THREAD_STACK_SIZEOF(lora_stack_area),
 								lora_entry_point,
 								NULL, NULL, NULL,
-								HIGH_PRIORITY, 0, K_NO_WAIT);
+								NORMAL_PRIORITY, 0, K_NO_WAIT);
 
 	usb_tid = k_thread_create(&usb_thread_data, usb_stack_area,
 								K_THREAD_STACK_SIZEOF(usb_stack_area),
