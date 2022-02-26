@@ -30,18 +30,20 @@
 #define ENABLE_ZMOD
 #define ENABLE_BME
 #define ENABLE_PM
+#define ENABLE_USB
 
 /* Flags to use real or fake sensor data */
 //#define ZMOD_REAL_DATA
 #define BME_REAL_DATA
 //#define PM_REAL_DATA
-//#define LORA_REAL_DATA
+#define LORA_REAL_DATA
 
 /**************************** Other Defines ***********************************/
 
 LOG_MODULE_REGISTER(lorawan_class_a);
-
+#define ONE 1
 K_FIFO_DEFINE(lora_send_fifo);
+K_SEM_DEFINE(fifo_sem, ONE, ONE);
 
 /*************************** Global Variables *********************************/
 k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
@@ -255,9 +257,13 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				printf("%d ", (int) packet[i]);
 		printf("\n");
 
-		k_fifo_put(&lora_send_fifo, packet);		
+		/* Only one thread can access the fifo at a time */
+		//k_sem_take(&fifo_sem, K_FOREVER);
+		k_fifo_put(&lora_send_fifo, packet);
+		//k_sem_give(&fifo_sem);
 
 		k_yield();
+		k_msleep(30000);
 	}
 
 	#else
@@ -281,7 +287,10 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				printf("%d ", (int) packet[i]);
 		printf("\n");
 
+		/* Only one thread can access the fifo at a time */
+		//k_sem_take(&fifo_sem, K_FOREVER);
 		k_fifo_put(&lora_send_fifo, packet);
+		//k_sem_give(&fifo_sem);
 
 		k_yield();
 	}
@@ -323,9 +332,13 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 				printf("%d ", (int) packet[i]);
 		printf("\n");
 
+		/* Only one thread can access the fifo at a time */
+		//k_sem_take(&fifo_sem, K_FOREVER);
 		k_fifo_put(&lora_send_fifo, packet);
+		//k_sem_give(&fifo_sem);
 
-		k_yield();
+		k_msleep(30000);
+		//k_yield();
 	}
 
 	#else
@@ -346,14 +359,18 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		printf("ZMOD packet: ");
 		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_ZMOD; i++)
 			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD)
-				printf("%d | ", (int) packet[i]);
+				printf("%02x | ", (int) packet[i]);
 			else
-				printf("%d ", (int) packet[i]);
+				printf("%02x ", (int) packet[i]);
 		printf("\n");
 
+		/* Only one thread can access the fifo at a time */
+		//k_sem_take(&fifo_sem, K_FOREVER);
 		k_fifo_put(&lora_send_fifo, packet);
+		//k_sem_give(&fifo_sem);
 
 		k_yield();
+		k_msleep(30000);
 	}
 
 	#endif
@@ -366,8 +383,8 @@ void pm_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
-		k_busy_wait((uint32_t) 500000);
-		printf("PM sensor sample\n");
+		//k_busy_wait((uint32_t) 500000);
+		//printf("PM sensor sample\n");
 		k_yield();
 	}
 	#endif
@@ -400,11 +417,20 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	while (1) {
 		intptr_t *data_item;
-		printf("Main loop lora\n\n");
+		printf("==================================\nMain loop lora\n");
 
 		/* If there is nothing in the FIFO, yield the thread */
-		while ((data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT)) == NULL) {
-			k_msleep(1000);
+		while (1) {
+			//k_sem_take(&fifo_sem, K_FOREVER);
+			data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT);
+
+			if (data_item == NULL) {
+				printf("fifo empty!\n");
+				//k_sem_give(&fifo_sem);
+				k_yield();
+			} else {
+				break;
+			}
 		}
 
 		/* Get the size of the packet based on the first channel byte. */
@@ -423,12 +449,8 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 			send_data[i-1] = data_item[i];
 		}
 
-		printf("LoRa Sending message: ");
-		for (int i = 0; i < data_item_len; i++)
-			printf("%d ", send_data[i]);
-		printf("\n");
-
 		while (1) {
+
 			ret = lorawan_send(2, send_data, data_item_len, LORAWAN_MSG_CONFIRMED);
 			if (ret == -EAGAIN) {
 				LOG_ERR("lorawan_send failed: %d. Continuing...\n", ret);
@@ -437,13 +459,22 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 			}
 
 			if (ret < 0) {
-				LOG_ERR("lorawan_send failed: %d\n", ret);
-				return;
+				printf("lorawan_send failed: %d\n", ret);
+				break;
 			}
+
+			printf("LoRa Sending message: ");
+			for (int i = 0; i < data_item_len; i++)
+				printf("%d ", send_data[i]);
+			printf("\n");
+
+			break;
 		}
 
+		printf("Free send data!\n==================================\n");
 		free(send_data);
 
+		//k_sem_give(&fifo_sem);		
 		k_yield();
 	}
 
@@ -493,7 +524,7 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 void usb_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	while (1) {
-		printf("Waiting for USB commands...\n");
+		//printf("Waiting for USB commands...\n");
 		k_yield();
 	}
 }
@@ -549,5 +580,7 @@ void main()
 	k_thread_start(&lora_thread_data);
 	#endif
 
+	#ifdef ENABLE_USB
 	k_thread_start(&usb_thread_data);
+	#endif
 }
