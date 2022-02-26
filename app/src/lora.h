@@ -1,6 +1,6 @@
 /******************** LoRaWAN Configuration Parameters ************************/
 /* Enable or disable LoRaWAN for testing purposes */
-//#define ENABLE_LORAWAN
+#define ENABLE_LORAWAN
 
 /* Switch between using ABP or OTAA parameters */
 #define USE_ABP
