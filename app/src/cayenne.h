@@ -14,7 +14,7 @@
 
 /* Cayenne total packet size */
 #define CAYENNE_TOTAL_SIZE_BME  40 /* 4 sensor values */
-#define CAYENNE_TOTAL_SIZE_ZMOD 16 /* 1 sensor value + 2 bytes */
+#define CAYENNE_TOTAL_SIZE_ZMOD 10 /* 1 sensor value + 2 bytes */
 #define CAYENNE_TOTAL_SIZE_PM   0
 
 /* Cayenne data types */
