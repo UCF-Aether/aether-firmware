@@ -36,14 +36,19 @@
 //#define ZMOD_REAL_DATA
 #define BME_REAL_DATA
 //#define PM_REAL_DATA
-#define LORA_REAL_DATA
+//#define LORA_REAL_DATA
+
+/* Sleep time in between sensor readings */
+#define ZMOD_SLEEP 30000
+#define BME_SLEEP 30000
+#define PM_SLEEP 30000
 
 /**************************** Other Defines ***********************************/
 
-LOG_MODULE_REGISTER(lorawan_class_a);
+LOG_MODULE_REGISTER(aether);
 #define ONE 1
 K_FIFO_DEFINE(lora_send_fifo);
-K_SEM_DEFINE(fifo_sem, ONE, ONE);
+// K_SEM_DEFINE(fifo_sem, ONE, ONE);
 
 /*************************** Global Variables *********************************/
 k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
@@ -217,7 +222,7 @@ void create_zmod_payload(intptr_t *packet, int o3_val, int fast_aqi_val)
 /************************** Thread Entry Functions ****************************/
 
 void bme_entry_point(void *arg1, void *arg2, void *arg3) {
-
+	LOG_MODULE_DECLARE(aether);
 	#ifdef BME_REAL_DATA
 
 	/* Declare bme688 device and associated sensor values */
@@ -249,7 +254,7 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 						   	humidity.val1, humidity.val2, gas_res.val1,
 							gas_res.val2);
 		
-		printf("BME packet: ");
+		LOG_INF("BME packet: ");
 		for (int i = 1; i < CAYENNE_TOTAL_SIZE_BME; i++)
 			if (i%10 == 0)
 				printf("%d | ", (int) packet[i]);
@@ -258,12 +263,9 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 		printf("\n");
 
 		/* Only one thread can access the fifo at a time */
-		//k_sem_take(&fifo_sem, K_FOREVER);
 		k_fifo_put(&lora_send_fifo, packet);
-		//k_sem_give(&fifo_sem);
 
-		k_yield();
-		k_msleep(30000);
+		k_msleep(BME_SLEEP);
 	}
 
 	#else
@@ -279,7 +281,7 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 						   	humidity.val1, humidity.val2, gas_res.val1,
 							gas_res.val2);
 
-		printf("BME packet: ");
+		LOG_INF("BME packet: ");
 		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_BME; i++)
 			if (i%10 == 0)
 				printf("%d | ", (int) packet[i]);
@@ -288,20 +290,18 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 		printf("\n");
 
 		/* Only one thread can access the fifo at a time */
-		//k_sem_take(&fifo_sem, K_FOREVER);
 		k_fifo_put(&lora_send_fifo, packet);
-		//k_sem_give(&fifo_sem);
 
-		k_yield();
+		k_msleep(BME_SLEEP);
 	}
 
 	#endif
 }
 
 void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
-
+	LOG_MODULE_DECLARE(aether);
 	#ifdef ZMOD_REAL_DATA
-	printf("zmod real\n");
+
 	int ret;
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 	struct sensor_value fast_aqi, o3_ppb;
@@ -324,7 +324,7 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		create_zmod_payload(packet, o3_ppb.val1, fast_aqi.val1);
 
-		printf("ZMOD packet: ");
+		LOG_INF("ZMOD packet: ");
 		for (int i = 1; i < CAYENNE_TOTAL_SIZE_ZMOD; i++)
 			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD-1)
 				printf("%d | ", (int) packet[i]);
@@ -333,12 +333,9 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		printf("\n");
 
 		/* Only one thread can access the fifo at a time */
-		//k_sem_take(&fifo_sem, K_FOREVER);
 		k_fifo_put(&lora_send_fifo, packet);
-		//k_sem_give(&fifo_sem);
 
-		k_msleep(30000);
-		//k_yield();
+		k_msleep(ZMOD_SLEEP);
 	}
 
 	#else
@@ -356,7 +353,7 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		create_zmod_payload(packet, o3_ppb, fast_aqi);
 
-		printf("ZMOD packet: ");
+		LOG_INF("ZMOD packet: ");
 		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_ZMOD; i++)
 			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD)
 				printf("%02x | ", (int) packet[i]);
@@ -365,12 +362,9 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		printf("\n");
 
 		/* Only one thread can access the fifo at a time */
-		//k_sem_take(&fifo_sem, K_FOREVER);
 		k_fifo_put(&lora_send_fifo, packet);
-		//k_sem_give(&fifo_sem);
 
-		k_yield();
-		k_msleep(30000);
+		k_msleep(ZMOD_SLEEP);
 	}
 
 	#endif
@@ -391,6 +385,7 @@ void pm_entry_point(void *arg1, void *arg2, void *arg3) {
 }
 
 void lora_entry_point(void *arg1, void *arg2, void *arg3) {
+	LOG_MODULE_DECLARE(aether);
 	int ret;
 
 	#ifdef LORA_REAL_DATA
@@ -421,12 +416,10 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		/* If there is nothing in the FIFO, yield the thread */
 		while (1) {
-			//k_sem_take(&fifo_sem, K_FOREVER);
 			data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT);
 
 			if (data_item == NULL) {
 				printf("fifo empty!\n");
-				//k_sem_give(&fifo_sem);
 				k_yield();
 			} else {
 				break;
@@ -463,7 +456,7 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 				break;
 			}
 
-			printf("LoRa Sending message: ");
+			LOG_INF("LoRa Sending message: ");
 			for (int i = 0; i < data_item_len; i++)
 				printf("%d ", send_data[i]);
 			printf("\n");
@@ -473,8 +466,7 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		printf("Free send data!\n==================================\n");
 		free(send_data);
-
-		//k_sem_give(&fifo_sem);		
+	
 		k_yield();
 	}
 
@@ -506,7 +498,7 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 			send_data[i-1] = data_item[i];
 		}
 
-		printf("Sending message: ");
+		printf("<%llu> LoRa sending message: ", k_uptime_get());
 		for (int i = 0; i < data_item_len; i++)
 			printf("%d ", send_data[i]);
 		printf("\n");
