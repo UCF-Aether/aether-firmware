@@ -26,18 +26,6 @@
 
 /*************************** Sensor Configuration *****************************/
 
-/* Flags for enabling sensors */
-// #define ENABLE_ZMOD
-// #define ENABLE_BME
-// #define ENABLE_PM
-// #define ENABLE_USB
-
-// /* Flags to use real or fake sensor data */
-// #define ZMOD_REAL_DATA
-// #define BME_REAL_DATA
-//#define PM_REAL_DATA
-//#define LORA_REAL_DATA
-
 /* Sleep time in between sensor readings */
 #define ZMOD_SLEEP 30000
 #define BME_SLEEP 30000
