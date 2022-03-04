@@ -33,10 +33,10 @@
 #define ENABLE_USB
 
 /* Flags to use real or fake sensor data */
-//#define ZMOD_REAL_DATA
+#define ZMOD_REAL_DATA
 #define BME_REAL_DATA
 //#define PM_REAL_DATA
-//#define LORA_REAL_DATA
+#define LORA_REAL_DATA
 
 /* Sleep time in between sensor readings */
 #define ZMOD_SLEEP 30000
@@ -320,7 +320,7 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
 
 		printf("fast aqi: %d", fast_aqi.val1);
-		printf("o3 (ppb): %d", o3_ppb.val1);
+		printf("o3 (ppb): %d\n", o3_ppb.val1);
 
 		create_zmod_payload(packet, o3_ppb.val1, fast_aqi.val1);
 
