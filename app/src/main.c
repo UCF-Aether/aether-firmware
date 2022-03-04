@@ -27,16 +27,16 @@
 /*************************** Sensor Configuration *****************************/
 
 /* Flags for enabling sensors */
-#define ENABLE_ZMOD
-#define ENABLE_BME
-#define ENABLE_PM
-#define ENABLE_USB
+// #define ENABLE_ZMOD
+// #define ENABLE_BME
+// #define ENABLE_PM
+// #define ENABLE_USB
 
-/* Flags to use real or fake sensor data */
-#define ZMOD_REAL_DATA
-#define BME_REAL_DATA
+// /* Flags to use real or fake sensor data */
+// #define ZMOD_REAL_DATA
+// #define BME_REAL_DATA
 //#define PM_REAL_DATA
-#define LORA_REAL_DATA
+//#define LORA_REAL_DATA
 
 /* Sleep time in between sensor readings */
 #define ZMOD_SLEEP 30000
@@ -274,12 +274,12 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 	while (1) {
 		intptr_t packet[CAYENNE_TOTAL_SIZE_BME+1];
 
+		int t1 = 12, t2 = 13, p1 = 33, p2 = 55, h1 = 32, h2=34, g1=66, g2=99;
+
 		k_busy_wait((uint32_t) 500000);
 		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
 
-		create_bme_payload(packet, temp.val1, temp.val2, press.val1, press.val2,
-						   	humidity.val1, humidity.val2, gas_res.val1,
-							gas_res.val2);
+		create_bme_payload(packet, t1, t2, p1, p2, h1, h2, g1, g2);
 
 		LOG_INF("BME packet: ");
 		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_BME; i++)
@@ -302,7 +302,6 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 	LOG_MODULE_DECLARE(aether);
 	#ifdef ZMOD_REAL_DATA
 
-	int ret;
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 	struct sensor_value fast_aqi, o3_ppb;
 
