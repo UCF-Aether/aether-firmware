@@ -27,9 +27,9 @@
 /*************************** Sensor Configuration *****************************/
 
 /* Sleep time in between sensor readings */
-#define ZMOD_SLEEP 30000
-#define BME_SLEEP 30000
-#define PM_SLEEP 30000
+#define ZMOD_SLEEP 3000
+#define BME_SLEEP 3000
+#define PM_SLEEP 3000
 
 /**************************** Other Defines ***********************************/
 
@@ -63,6 +63,11 @@ static void lorwan_datarate_changed(enum lorawan_datarate dr)
 	LOG_INF("New Datarate: DR_%d, Max Payload %d", dr, max_size);
 }
 
+struct lorawan_downlink_cb downlink_cb = {
+  .port = LW_RECV_PORT_ANY,
+  .cb = dl_callback
+};
+
 #ifndef USE_ABP
 int init_lorawan_otaa()
 {
@@ -73,10 +78,6 @@ int init_lorawan_otaa()
 	uint8_t app_key[] = LORAWAN_APP_KEY;
 	int ret = 1;
 
-	struct lorawan_downlink_cb downlink_cb = {
-		.port = LW_RECV_PORT_ANY,
-		.cb = dl_callback
-	};
 
 	lora_dev = device_get_binding(DEFAULT_RADIO);
 	if (!lora_dev) {
@@ -121,11 +122,6 @@ int init_lorawan_abp()
 	uint8_t nwk_skey[] = LORAWAN_NWK_SKEY;
 	
 	int ret = 1;
-
-	struct lorawan_downlink_cb downlink_cb = {
-		.port = LW_RECV_PORT_ANY,
-		.cb = dl_callback
-	};
 
 	lora_dev = device_get_binding(DEFAULT_RADIO);
 	if (!lora_dev) {

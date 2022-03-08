@@ -11,7 +11,8 @@ target_sources(app PRIVATE ${app_sources})
 add_definitions(-DENABLE_ZMOD, 
                 -DENABLE_BME,
                 -DENABLE_PM,
-                -DENABLE_USB)
+                -DENABLE_USB
+                -DLORA_REAL_DATA)
 
-add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA)
+# add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA)
 #add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA, -DLORA_REAL_DATA)
