@@ -208,8 +208,8 @@ void create_zmod_payload(intptr_t *o3_packet, intptr_t *fast_aqi_packet, int o3_
 
 void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 	LOG_MODULE_DECLARE(aether);
-	#ifdef BME_REAL_DATA
 
+	#ifdef BME_REAL_DATA
 	/* Declare bme688 device and associated sensor values */
   	const struct device *dev_bme = DEVICE_DT_GET(DT_NODELABEL(bme680));
 	struct sensor_value temp, press, humidity, gas_res;
@@ -219,10 +219,17 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 		printk("BME688 is not ready!\n");
 		return;
 	}
+	#endif
 
+	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
-		intptr_t packet[CAYENNE_TOTAL_SIZE_BME+1];
+		intptr_t t_packet[CAYENNE_TOTAL_SIZE_TEMP_ZEPHYR+1];
+		intptr_t p_packet[CAYENNE_TOTAL_SIZE_PRESSURE_ZEPHYR+1];
+		intptr_t h_packet[CAYENNE_TOTAL_SIZE_HUMIDITY_ZEPHYR+1];
+		intptr_t g_packet[CAYENNE_TOTAL_SIZE_GAS_RES_ZEPHYR+1];
+		int i;
 
+		#ifdef BME_REAL_DATA
 		/* Read data from BME688 */
 		sensor_sample_fetch(dev_bme);
 		sensor_channel_get(dev_bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
@@ -235,43 +242,19 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				humidity.val1, humidity.val2, gas_res.val1,
 				gas_res.val2);
 
-		create_bme_payload(packet, temp.val1, temp.val2, press.val1, press.val2,
-						   	humidity.val1, humidity.val2, gas_res.val1,
-							gas_res.val2);
-		
-		LOG_INF("BME packet: ");
-		for (int i = 1; i < CAYENNE_TOTAL_SIZE_BME; i++)
-			if (i%10 == 0)
-				printf("%d | ", (int) packet[i]);
-			else
-				printf("%d ", (int) packet[i]);
-		printf("\n");
-
-		/* Only one thread can access the fifo at a time */
-		k_fifo_put(&lora_send_fifo, packet);
-
-		k_msleep(BME_SLEEP);
-	}
-
-	#else
-
-	/* Simulate reading data from sensor when no sensor connected */
-	while (1) {
-		intptr_t t_packet[CAYENNE_TOTAL_SIZE_TEMP_ZEPHYR+1];
-		intptr_t p_packet[CAYENNE_TOTAL_SIZE_PRESSURE_ZEPHYR+1];
-		intptr_t h_packet[CAYENNE_TOTAL_SIZE_HUMIDITY_ZEPHYR+1];
-		intptr_t g_packet[CAYENNE_TOTAL_SIZE_GAS_RES_ZEPHYR+1];
-		int i;
-
+		create_bme_payload(t_packet, p_packet, h_packet, g_packet, temp.val1, 
+							temp.val2, press.val1, press.val2, humidity.val1, 
+							humidity.val2, gas_res.val1, gas_res.val2);
+		#else
 		int t1 = 12, t2 = 13, p1 = 33, p2 = 55, h1 = 32, h2=34, g1=66, g2=99;
-
 		k_busy_wait((uint32_t) 500000);
 
 		printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
 				t1, t2, p1, p2, h1, h2, g1, g2);
 
 		create_bme_payload(t_packet, p_packet, h_packet, g_packet,
-							t1, t2, p1, p2, h1, h2, g1, g2);
+					t1, t2, p1, p2, h1, h2, g1, g2);
+		#endif
 
 		LOG_INF("BME packet: ");
 		for (i = 1; i <= CAYENNE_TOTAL_SIZE_TEMP_ZEPHYR; i++)
@@ -295,14 +278,12 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		k_msleep(BME_SLEEP);
 	}
-
-	#endif
 }
 
 void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 	LOG_MODULE_DECLARE(aether);
+	
 	#ifdef ZMOD_REAL_DATA
-
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 	struct sensor_value fast_aqi, o3_ppb;
 
@@ -311,41 +292,10 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		printk("ZMOD4510 is not ready!");
 		return;
 	}
-
-	while (1) {
-		intptr_t packet[CAYENNE_TOTAL_SIZE_ZMOD+1];
-		uint8_t o3_packet[CAYENNE_SIZE_O3_PPB+2];
-		uint8_t fast_aqi_packet[CAYENNE_SIZE_FAST_AQI+2];
-
-		/* Read data from ZMOD4510 */
-		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
-		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
-
-		printf("fast aqi: %d", fast_aqi.val1);
-		printf("o3 (ppb): %d\n", o3_ppb.val1);
-
-		create_zmod_payload(packet, o3_ppb.val1, fast_aqi.val1);
-
-
-
-		LOG_INF("ZMOD packet: ");
-		for (int i = 1; i < CAYENNE_TOTAL_SIZE_ZMOD; i++)
-			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD-1)
-				printf("%02x | ", (int) packet[i]);
-			else
-				printf("%02x ", (int) packet[i]);
-		printf("\n");
-
-		/* Only one thread can access the fifo at a time */
-		k_fifo_put(&lora_send_fifo, packet);
-
-		k_msleep(ZMOD_SLEEP);
-	}
-
 	#else
-
 	int o3_ppb = 4423;
 	int fast_aqi = 100;
+	#endif
 
 	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
@@ -353,7 +303,15 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		intptr_t fast_aqi_packet[CAYENNE_TOTAL_SIZE_FAST_AQI+1];
 		int i;
 
+		#ifdef ZMOD_REAL_DATA
+
+		/* Read data from ZMOD4510 */
+		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
+		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
+		#else
 		k_busy_wait((uint32_t) 500000);
+		#endif
+
 		printf("fast aqi: %d ", fast_aqi);
 		printf("o3 (ppb): %d\n", o3_ppb);
 
@@ -373,8 +331,6 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		k_msleep(ZMOD_SLEEP);
 	}
-
-	#endif
 }
 
 void pm_entry_point(void *arg1, void *arg2, void *arg3) {
@@ -585,7 +541,7 @@ void main()
 	k_fifo_init(&lora_send_fifo);
 
 	#ifdef ENABLE_BME
-	//k_thread_start(&bme_thread_data);
+	k_thread_start(&bme_thread_data);
 	#endif
 
 	#ifdef ENABLE_ZMOD
