@@ -289,12 +289,9 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
   	/* Check if the ZMOD4510 is ready */
 	if (!device_is_ready(dev_zmod)) {
-		printk("ZMOD4510 is not ready!");
+		printk("ZMOD4510 is not ready!\n");
 		return;
 	}
-	#else
-	int o3_ppb = 4423;
-	int fast_aqi = 100;
 	#endif
 
 	/* Simulate reading data from sensor when no sensor connected */
@@ -308,14 +305,23 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 		/* Read data from ZMOD4510 */
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
+
+		printf("fast aqi: %d ", fast_aqi.val1);
+		printf("o3 (ppb): %d\n", o3_ppb.val1);
+
+		create_zmod_payload(o3_packet, fast_aqi_packet, o3_ppb.val1, fast_aqi.val1);
+
 		#else
-		k_busy_wait((uint32_t) 500000);
-		#endif
+		int o3_ppb = 4423;
+		int fast_aqi = 100;
 
 		printf("fast aqi: %d ", fast_aqi);
 		printf("o3 (ppb): %d\n", o3_ppb);
 
 		create_zmod_payload(o3_packet, fast_aqi_packet, o3_ppb, fast_aqi);
+
+		k_busy_wait((uint32_t) 500000);
+		#endif
 
 		LOG_INF("ZMOD packet: ");
 		for (i = 1; i <= CAYENNE_TOTAL_SIZE_O3_PPB; i++)
