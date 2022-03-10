@@ -38,7 +38,7 @@ LOG_MODULE_REGISTER(aether);
 K_FIFO_DEFINE(lora_send_fifo);
 // K_SEM_DEFINE(fifo_sem, ONE, ONE);
 
-/*************************** Global Variables *********************************/
+/*************************** Global Declarations ******************************/
 k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
 
 /******************************************************************************/
@@ -188,27 +188,28 @@ void create_cayenne_segment_1int(intptr_t *packet, int val1, int index,
 		packet[index+2+i] = val_bytes1[i];
 }
 
-void create_bme_payload(intptr_t *packet, int t1, int t2, int p1, int p2,
+void create_bme_payload(intptr_t *t_packet, intptr_t *p_packet, intptr_t *h_packet,
+						intptr_t *g_packet,int t1, int t2, int p1, int p2,
 						int h1, int h2, int g1, int g2)
 {
-	create_cayenne_segment_2int(packet, t1, t2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_TEMP_ZEPHYR);
-	create_cayenne_segment_2int(packet, p1, p2, 11, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_PRESSURE_ZEPHYR);
-	create_cayenne_segment_2int(packet, h1, h2, 21, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_HUMIDITY_ZEPHYR);
-	create_cayenne_segment_2int(packet, g1, g2, 31, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_GAS_RES_ZEPHYR);
+	create_cayenne_segment_2int(t_packet, t1, t2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_TEMP_ZEPHYR);
+	create_cayenne_segment_2int(p_packet, p1, p2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_PRESSURE_ZEPHYR);
+	create_cayenne_segment_2int(h_packet, h1, h2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_HUMIDITY_ZEPHYR);
+	create_cayenne_segment_2int(g_packet, g1, g2, 1, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_GAS_RES_ZEPHYR);
 }
 
-void create_zmod_payload(intptr_t *packet, int o3_val, int fast_aqi_val)
+void create_zmod_payload(intptr_t *o3_packet, intptr_t *fast_aqi_packet, int o3_val, int fast_aqi_val)
 {
-	create_cayenne_segment_1int(packet, o3_val, 1, 4, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_O3_PPB);
-	create_cayenne_segment_1int(packet, fast_aqi_val, 7, 2, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_FAST_AQI);
+	create_cayenne_segment_1int(o3_packet, o3_val, 1, 4, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_O3_PPB);
+	create_cayenne_segment_1int(fast_aqi_packet, fast_aqi_val, 1, 2, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_FAST_AQI);
 }
 
 /************************** Thread Entry Functions ****************************/
 
 void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 	LOG_MODULE_DECLARE(aether);
-	#ifdef BME_REAL_DATA
 
+	#ifdef BME_REAL_DATA
 	/* Declare bme688 device and associated sensor values */
   	const struct device *dev_bme = DEVICE_DT_GET(DT_NODELABEL(bme680));
 	struct sensor_value temp, press, humidity, gas_res;
@@ -218,10 +219,17 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 		printk("BME688 is not ready!\n");
 		return;
 	}
+	#endif
 
+	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
-		intptr_t packet[CAYENNE_TOTAL_SIZE_BME+1];
+		intptr_t t_packet[CAYENNE_TOTAL_SIZE_TEMP_ZEPHYR+1];
+		intptr_t p_packet[CAYENNE_TOTAL_SIZE_PRESSURE_ZEPHYR+1];
+		intptr_t h_packet[CAYENNE_TOTAL_SIZE_HUMIDITY_ZEPHYR+1];
+		intptr_t g_packet[CAYENNE_TOTAL_SIZE_GAS_RES_ZEPHYR+1];
+		int i;
 
+		#ifdef BME_REAL_DATA
 		/* Read data from BME688 */
 		sensor_sample_fetch(dev_bme);
 		sensor_channel_get(dev_bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
@@ -234,123 +242,101 @@ void bme_entry_point(void *arg1, void *arg2, void *arg3) {
 				humidity.val1, humidity.val2, gas_res.val1,
 				gas_res.val2);
 
-		create_bme_payload(packet, temp.val1, temp.val2, press.val1, press.val2,
-						   	humidity.val1, humidity.val2, gas_res.val1,
-							gas_res.val2);
-		
-		LOG_INF("BME packet: ");
-		for (int i = 1; i < CAYENNE_TOTAL_SIZE_BME; i++)
-			if (i%10 == 0)
-				printf("%d | ", (int) packet[i]);
-			else
-				printf("%d ", (int) packet[i]);
-		printf("\n");
-
-		/* Only one thread can access the fifo at a time */
-		k_fifo_put(&lora_send_fifo, packet);
-
-		k_msleep(BME_SLEEP);
-	}
-
-	#else
-
-	/* Simulate reading data from sensor when no sensor connected */
-	while (1) {
-		intptr_t packet[CAYENNE_TOTAL_SIZE_BME+1];
-
+		create_bme_payload(t_packet, p_packet, h_packet, g_packet, temp.val1, 
+							temp.val2, press.val1, press.val2, humidity.val1, 
+							humidity.val2, gas_res.val1, gas_res.val2);
+		#else
 		int t1 = 12, t2 = 13, p1 = 33, p2 = 55, h1 = 32, h2=34, g1=66, g2=99;
-
 		k_busy_wait((uint32_t) 500000);
-		printf("T: 33.33; P: 44.44; H: 55.55; G: 4444.4444\n");
 
-		create_bme_payload(packet, t1, t2, p1, p2, h1, h2, g1, g2);
+		printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
+				t1, t2, p1, p2, h1, h2, g1, g2);
+
+		create_bme_payload(t_packet, p_packet, h_packet, g_packet,
+					t1, t2, p1, p2, h1, h2, g1, g2);
+		#endif
 
 		LOG_INF("BME packet: ");
-		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_BME; i++)
-			if (i%10 == 0)
-				printf("%d | ", (int) packet[i]);
-			else
-				printf("%d ", (int) packet[i]);
-		printf("\n");
+		for (i = 1; i <= CAYENNE_TOTAL_SIZE_TEMP_ZEPHYR; i++)
+			printf("%02x ", (int) t_packet[i]);
+		printf("| ");
+		for (i = 1; i <= CAYENNE_TOTAL_SIZE_PRESSURE_ZEPHYR; i++)
+			printf("%02x ", (int) p_packet[i]);
+		printf("| ");
+		for (i = 1; i <= CAYENNE_TOTAL_SIZE_HUMIDITY_ZEPHYR; i++)
+			printf("%02x ", (int) h_packet[i]);
+		printf("| ");
+		for (i = 1; i <= CAYENNE_TOTAL_SIZE_GAS_RES_ZEPHYR; i++)
+			printf("%02x ", (int) g_packet[i]);
+		printf("|\n");
 
 		/* Only one thread can access the fifo at a time */
-		k_fifo_put(&lora_send_fifo, packet);
+		k_fifo_put(&lora_send_fifo, t_packet);
+		k_fifo_put(&lora_send_fifo, p_packet);
+		k_fifo_put(&lora_send_fifo, h_packet);
+		k_fifo_put(&lora_send_fifo, g_packet);
 
 		k_msleep(BME_SLEEP);
 	}
-
-	#endif
 }
 
 void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 	LOG_MODULE_DECLARE(aether);
+	
 	#ifdef ZMOD_REAL_DATA
-
 	const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 	struct sensor_value fast_aqi, o3_ppb;
 
   	/* Check if the ZMOD4510 is ready */
 	if (!device_is_ready(dev_zmod)) {
-		printk("ZMOD4510 is not ready!");
+		printk("ZMOD4510 is not ready!\n");
 		return;
 	}
+	#endif
 
+	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
-		intptr_t packet[CAYENNE_TOTAL_SIZE_ZMOD+1];
+		intptr_t o3_packet[CAYENNE_TOTAL_SIZE_O3_PPB+1];
+		intptr_t fast_aqi_packet[CAYENNE_TOTAL_SIZE_FAST_AQI+1];
+		int i;
+
+		#ifdef ZMOD_REAL_DATA
 
 		/* Read data from ZMOD4510 */
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
 
-		printf("fast aqi: %d", fast_aqi.val1);
+		printf("fast aqi: %d ", fast_aqi.val1);
 		printf("o3 (ppb): %d\n", o3_ppb.val1);
 
-		create_zmod_payload(packet, o3_ppb.val1, fast_aqi.val1);
+		create_zmod_payload(o3_packet, fast_aqi_packet, o3_ppb.val1, fast_aqi.val1);
 
-		LOG_INF("ZMOD packet: ");
-		for (int i = 1; i < CAYENNE_TOTAL_SIZE_ZMOD; i++)
-			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD-1)
-				printf("%d | ", (int) packet[i]);
-			else
-				printf("%d ", (int) packet[i]);
-		printf("\n");
+		#else
+		int o3_ppb = 4423;
+		int fast_aqi = 100;
 
-		/* Only one thread can access the fifo at a time */
-		k_fifo_put(&lora_send_fifo, packet);
+		printf("fast aqi: %d ", fast_aqi);
+		printf("o3 (ppb): %d\n", o3_ppb);
 
-		k_msleep(ZMOD_SLEEP);
-	}
-
-	#else
-
-	int o3_ppb = 100;
-	int fast_aqi = 25;
-
-	/* Simulate reading data from sensor when no sensor connected */
-	while (1) {
-		intptr_t packet[CAYENNE_TOTAL_SIZE_ZMOD+1];
+		create_zmod_payload(o3_packet, fast_aqi_packet, o3_ppb, fast_aqi);
 
 		k_busy_wait((uint32_t) 500000);
-		printf("fast aqi: %d ", o3_ppb);
-		printf("o3 (ppb): %d\n", fast_aqi);
-
-		create_zmod_payload(packet, o3_ppb, fast_aqi);
+		#endif
 
 		LOG_INF("ZMOD packet: ");
-		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_ZMOD; i++)
-			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD)
-				printf("%02x | ", (int) packet[i]);
-			else
-				printf("%02x ", (int) packet[i]);
-		printf("\n");
+		for (i = 1; i <= CAYENNE_TOTAL_SIZE_O3_PPB; i++)
+			printf("%02x ", (int) o3_packet[i]);
+		printf("| ");
+		for (i = 1; i <= CAYENNE_TOTAL_SIZE_FAST_AQI; i++)
+			printf("%02x ", (int) fast_aqi_packet[i]);
+		printf("|\n");
 
 		/* Only one thread can access the fifo at a time */
-		k_fifo_put(&lora_send_fifo, packet);
+		k_fifo_put(&lora_send_fifo, o3_packet);
+		k_fifo_put(&lora_send_fifo, fast_aqi_packet);
 
 		k_msleep(ZMOD_SLEEP);
 	}
-
-	#endif
 }
 
 void pm_entry_point(void *arg1, void *arg2, void *arg3) {
@@ -459,20 +445,39 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 	/* Simulate sending off LoRa packets */
 	while (1) {
 		intptr_t *data_item;
+		uint8_t data_item_len = 0;
 
 		/* If there is nothing in the FIFO, yield the thread */
 		while ((data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT)) == NULL) {
 			k_yield();
 		}
 
-		/* Get the size of the packet based on the first channel byte. */
-		uint8_t data_item_len = 0;
-		if (data_item[1] == CAYENNE_CHANNEL_BME) {
-			data_item_len = CAYENNE_TOTAL_SIZE_BME;
-		} else if (data_item[1] == CAYENNE_CHANNEL_ZMOD) {
-			data_item_len = CAYENNE_TOTAL_SIZE_ZMOD;
-		} else if (data_item[1] == CAYENNE_CHANNEL_PM) {
-			data_item_len = CAYENNE_CHANNEL_PM;
+		/* Get the size of the packet based on the sensor data type byte. */
+		switch (data_item[2]) {
+			case CAYENNE_TYPE_TEMP_ZEPHYR:
+				data_item_len = CAYENNE_TOTAL_SIZE_TEMP_ZEPHYR;
+				break;
+			case CAYENNE_TYPE_PRESSURE_ZEPHYR:
+				data_item_len = CAYENNE_TOTAL_SIZE_PRESSURE_ZEPHYR;
+				break;
+			case CAYENNE_TYPE_HUMIDITY_ZEPHYR:
+				data_item_len = CAYENNE_TOTAL_SIZE_HUMIDITY_ZEPHYR;
+				break;
+			case CAYENNE_TYPE_GAS_RES_ZEPHYR:
+				data_item_len = CAYENNE_TOTAL_SIZE_GAS_RES_ZEPHYR;
+				break;
+			case CAYENNE_TYPE_FAST_AQI:
+				data_item_len = CAYENNE_TOTAL_SIZE_FAST_AQI;
+				break;
+			case CAYENNE_TYPE_AQI:
+				data_item_len = CAYENNE_TOTAL_SIZE_AQI;
+				break;
+			case CAYENNE_TYPE_O3_PPB:
+				data_item_len = CAYENNE_TOTAL_SIZE_O3_PPB;
+				break;
+			default:
+				data_item_len = 0;
+				break;
 		}
 
 		/* Convert the packet into a send-able packet composed of bytes */
@@ -483,7 +488,9 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		printf("<%llu> LoRa sending message: ", k_uptime_get());
 		for (int i = 0; i < data_item_len; i++)
-			printf("%d ", send_data[i]);
+			printf("%02x ", send_data[i]);
+		
+		printf("  Data item lengeth: %d", data_item_len);
 		printf("\n");
 
 		free(send_data);
