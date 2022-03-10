@@ -17,6 +17,15 @@
 #define CAYENNE_TOTAL_SIZE_ZMOD 10 /* 1 sensor value + 2 bytes */
 #define CAYENNE_TOTAL_SIZE_PM   0
 
+/* Cayenne total packet size */
+#define CAYENNE_TOTAL_SIZE_TEMP_ZEPHYR        10
+#define CAYENNE_TOTAL_SIZE_PRESSURE_ZEPHYR    10
+#define CAYENNE_TOTAL_SIZE_HUMIDITY_ZEPHYR    10
+#define CAYENNE_TOTAL_SIZE_GAS_RES_ZEPHYR     10
+#define CAYENNE_TOTAL_SIZE_FAST_AQI           4
+#define CAYENNE_TOTAL_SIZE_AQI                4
+#define CAYENNE_TOTAL_SIZE_O3_PPB             6
+
 /* Cayenne data types */
 #define CAYENNE_TYPE_TEMP_ZEPHYR        0
 #define CAYENNE_TYPE_PRESSURE_ZEPHYR    1
@@ -31,6 +40,6 @@
 #define CAYENNE_SIZE_PRESSURE_ZEPHYR    8
 #define CAYENNE_SIZE_HUMIDITY_ZEPHYR    8
 #define CAYENNE_SIZE_GAS_RES_ZEPHYR     8
-#define CAYENNE_SIZE_FAST_AQI           1
-#define CAYENNE_SIZE_AQI                1
-#define CAYENNE_SIZE_O3_PPB             8
+#define CAYENNE_SIZE_FAST_AQI           2
+#define CAYENNE_SIZE_AQI                2
+#define CAYENNE_SIZE_O3_PPB             4
