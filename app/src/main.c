@@ -38,11 +38,15 @@ LOG_MODULE_REGISTER(aether);
 K_FIFO_DEFINE(lora_send_fifo);
 // K_SEM_DEFINE(fifo_sem, ONE, ONE);
 
-/*************************** Global Variables *********************************/
+/*************************** Global Declarations ******************************/
 k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
 
-/******************************************************************************/
+struct lorawan_downlink_cb downlink_cb = {
+  .port = LW_RECV_PORT_ANY,
+  .cb = dl_callback
+};
 
+/******************************************************************************/
 static void dl_callback(uint8_t port, bool data_pending,
 			int16_t rssi, int8_t snr,
 			uint8_t len, const uint8_t *data)
@@ -62,11 +66,6 @@ static void lorwan_datarate_changed(enum lorawan_datarate dr)
 	lorawan_get_payload_sizes(&unused, &max_size);
 	LOG_INF("New Datarate: DR_%d, Max Payload %d", dr, max_size);
 }
-
-struct lorawan_downlink_cb downlink_cb = {
-  .port = LW_RECV_PORT_ANY,
-  .cb = dl_callback
-};
 
 #ifndef USE_ABP
 int init_lorawan_otaa()
