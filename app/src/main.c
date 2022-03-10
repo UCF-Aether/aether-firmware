@@ -41,12 +41,8 @@ K_FIFO_DEFINE(lora_send_fifo);
 /*************************** Global Declarations ******************************/
 k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
 
-struct lorawan_downlink_cb downlink_cb = {
-  .port = LW_RECV_PORT_ANY,
-  .cb = dl_callback
-};
-
 /******************************************************************************/
+
 static void dl_callback(uint8_t port, bool data_pending,
 			int16_t rssi, int8_t snr,
 			uint8_t len, const uint8_t *data)
@@ -66,6 +62,11 @@ static void lorwan_datarate_changed(enum lorawan_datarate dr)
 	lorawan_get_payload_sizes(&unused, &max_size);
 	LOG_INF("New Datarate: DR_%d, Max Payload %d", dr, max_size);
 }
+
+struct lorawan_downlink_cb downlink_cb = {
+  .port = LW_RECV_PORT_ANY,
+  .cb = dl_callback
+};
 
 #ifndef USE_ABP
 int init_lorawan_otaa()
@@ -196,10 +197,10 @@ void create_bme_payload(intptr_t *packet, int t1, int t2, int p1, int p2,
 	create_cayenne_segment_2int(packet, g1, g2, 31, CAYENNE_CHANNEL_BME, CAYENNE_TYPE_GAS_RES_ZEPHYR);
 }
 
-void create_zmod_payload(intptr_t *packet, int o3_val, int fast_aqi_val)
+void create_zmod_payload(intptr_t *o3_packet, intptr_t *fast_aqi_packet, int o3_val, int fast_aqi_val)
 {
-	create_cayenne_segment_1int(packet, o3_val, 1, 4, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_O3_PPB);
-	create_cayenne_segment_1int(packet, fast_aqi_val, 7, 2, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_FAST_AQI);
+	create_cayenne_segment_1int(o3_packet, o3_val, 1, 4, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_O3_PPB);
+	create_cayenne_segment_1int(fast_aqi_packet, fast_aqi_val, 1, 2, CAYENNE_CHANNEL_ZMOD, CAYENNE_TYPE_FAST_AQI);
 }
 
 /************************** Thread Entry Functions ****************************/
@@ -296,6 +297,8 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	while (1) {
 		intptr_t packet[CAYENNE_TOTAL_SIZE_ZMOD+1];
+		uint8_t o3_packet[CAYENNE_SIZE_O3_PPB+2];
+		uint8_t fast_aqi_packet[CAYENNE_SIZE_FAST_AQI+2];
 
 		/* Read data from ZMOD4510 */
 		sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
@@ -306,12 +309,14 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
 		create_zmod_payload(packet, o3_ppb.val1, fast_aqi.val1);
 
+
+
 		LOG_INF("ZMOD packet: ");
 		for (int i = 1; i < CAYENNE_TOTAL_SIZE_ZMOD; i++)
 			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD-1)
-				printf("%d | ", (int) packet[i]);
+				printf("%02x | ", (int) packet[i]);
 			else
-				printf("%d ", (int) packet[i]);
+				printf("%02x ", (int) packet[i]);
 		printf("\n");
 
 		/* Only one thread can access the fifo at a time */
@@ -322,29 +327,32 @@ void zmod_entry_point(void *arg1, void *arg2, void *arg3) {
 
 	#else
 
-	int o3_ppb = 100;
-	int fast_aqi = 25;
+	int o3_ppb = 4423;
+	int fast_aqi = 100;
 
 	/* Simulate reading data from sensor when no sensor connected */
 	while (1) {
-		intptr_t packet[CAYENNE_TOTAL_SIZE_ZMOD+1];
+		uint8_t o3_packet[CAYENNE_SIZE_O3_PPB+2];
+		uint8_t fast_aqi_packet[CAYENNE_SIZE_FAST_AQI+2];
+		int i;
 
 		k_busy_wait((uint32_t) 500000);
-		printf("fast aqi: %d ", o3_ppb);
-		printf("o3 (ppb): %d\n", fast_aqi);
+		printf("fast aqi: %d ", fast_aqi);
+		printf("o3 (ppb): %d\n", o3_ppb);
 
-		create_zmod_payload(packet, o3_ppb, fast_aqi);
+		create_zmod_payload(o3_packet, fast_aqi_packet, o3_ppb, fast_aqi);
 
 		LOG_INF("ZMOD packet: ");
-		for (int i = 1; i <= CAYENNE_TOTAL_SIZE_ZMOD; i++)
-			if (i == 6 || i == CAYENNE_TOTAL_SIZE_ZMOD)
-				printf("%02x | ", (int) packet[i]);
-			else
-				printf("%02x ", (int) packet[i]);
-		printf("\n");
+		for (i = 1; i < CAYENNE_SIZE_O3_PPB+2; i++)
+			printf("%02x ", o3_packet[i]);
+		printf("| ");
+		for (i = 1; i < CAYENNE_SIZE_FAST_AQI+2; i++)
+			printf("%02x ", o3_packet[i]);
+		printf("|\n");
 
 		/* Only one thread can access the fifo at a time */
-		k_fifo_put(&lora_send_fifo, packet);
+		k_fifo_put(&lora_send_fifo, o3_packet);
+		k_fifo_put(&lora_send_fifo, fast_aqi_packet);
 
 		k_msleep(ZMOD_SLEEP);
 	}
