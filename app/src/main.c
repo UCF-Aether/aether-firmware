@@ -355,13 +355,13 @@ void pm_entry_point(void *arg1, void *arg2, void *arg3) {
 
 void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 	LOG_MODULE_DECLARE(aether);
-	int ret;
+	int data_item;
 
 	#ifdef LORA_REAL_DATA
+	int ret;
 
 	/* Forever attempt to join a LoRaWAN network, yield after failed attempt */
 	while (1) {
-
 		#ifdef USE_ABP
 		ret = init_lorawan_abp();
 		#else
@@ -376,71 +376,8 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 			printf("Join Success!\n");
 			break;
 		}
-
 	}
-
-	while (1) {
-		intptr_t *data_item;
-		printf("==================================\nMain loop lora\n");
-
-		/* If there is nothing in the FIFO, yield the thread */
-		while (1) {
-			data_item = k_fifo_get(&lora_send_fifo, K_NO_WAIT);
-
-			if (data_item == NULL) {
-				printf("fifo empty!\n");
-				k_yield();
-			} else {
-				break;
-			}
-		}
-
-		/* Get the size of the packet based on the first channel byte. */
-		uint8_t data_item_len = 0;
-		if (data_item[1] == CAYENNE_CHANNEL_BME) {
-			data_item_len = CAYENNE_TOTAL_SIZE_BME;
-		} else if (data_item[1] == CAYENNE_CHANNEL_ZMOD) {
-			data_item_len = CAYENNE_TOTAL_SIZE_ZMOD;
-		} else if (data_item[1] == CAYENNE_CHANNEL_PM) {
-			data_item_len = CAYENNE_CHANNEL_PM;
-		}
-
-		/* Convert the packet into a send-able packet composed of bytes */
-		uint8_t *send_data = malloc(data_item_len);
-		for (int i = 1; i <= data_item_len; i++) {
-			send_data[i-1] = data_item[i];
-		}
-
-		while (1) {
-
-			ret = lorawan_send(2, send_data, data_item_len, LORAWAN_MSG_CONFIRMED);
-			if (ret == -EAGAIN) {
-				LOG_ERR("lorawan_send failed: %d. Continuing...\n", ret);
-				k_sleep(DELAY);
-				continue;
-			}
-
-			if (ret < 0) {
-				printf("lorawan_send failed: %d\n", ret);
-				break;
-			}
-
-			LOG_INF("LoRa Sending message: ");
-			for (int i = 0; i < data_item_len; i++)
-				printf("%d ", send_data[i]);
-			printf("\n");
-
-			break;
-		}
-
-		printf("Free send data!\n==================================\n");
-		free(send_data);
-	
-		k_yield();
-	}
-
-	#else
-	int data_item;
+	#endif
 
 	/* Simulate sending off LoRa packets */
 	while (1) {
@@ -486,21 +423,45 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
 			send_data[i-1] = data_item[i];
 		}
 
+		#ifdef LORA_REAL_DATA
+		while (1) {
+
+			ret = lorawan_send(2, send_data, data_item_len, LORAWAN_MSG_CONFIRMED);
+			if (ret == -EAGAIN) {
+				LOG_ERR("lorawan_send failed: %d. Continuing...\n", ret);
+				k_sleep(DELAY);
+				continue;
+			}
+
+			if (ret < 0) {
+				printf("lorawan_send failed: %d\n", ret);
+				break;
+			}
+
+			LOG_INF("LoRa Sending message: ");
+			for (int i = 0; i < data_item_len; i++)
+				printf("%d ", send_data[i]);
+			printf("  Data item lengeth: %d", data_item_len);
+			printf("\n");
+
+			break;
+		}
+		#else
 		printf("<%llu> LoRa sending message: ", k_uptime_get());
 		for (int i = 0; i < data_item_len; i++)
 			printf("%02x ", send_data[i]);
-		
 		printf("  Data item lengeth: %d", data_item_len);
 		printf("\n");
 
-		free(send_data);
-
 		k_busy_wait((uint32_t) 500000);
 		printf("Message sent!\n");
+		#endif
+
+		free(send_data);
+
+
 		k_yield();
 	}
-
-	#endif
 }
 
 void usb_entry_point(void *arg1, void *arg2, void *arg3) {
