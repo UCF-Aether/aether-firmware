@@ -12,6 +12,7 @@ add_definitions(-DENABLE_ZMOD,
                 -DENABLE_BME,
                 -DENABLE_PM,
                 -DENABLE_USB)
+add_definitions(-DLORA_REAL_DATA)
 
 #add_definitions(-DBME_REAL_DATA)
 #add_definitions(-DZMOD_REAL_DATA)
