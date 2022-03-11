@@ -1,15 +1,22 @@
 &i2c2 {
-	bme680: bme680@76 {
-		compatible = "bosch,bme680";
-		reg = <0x76>;
-		label = "BME680";
-        status="okay";
-	};
+  bme680: bme680@76 {
+    compatible = "bosch,bme680";
+    reg = <0x76>;
+    label = "BME680";
+    status="okay";
+  };
 
-	zmod4510: zmod4510@33 {
-		compatible = "renesas,zmod4510";
-		reg = <0x33>;
-		label = "ZMOD4510";
-        status="okay";
-	};
+  zmod4510: zmod4510@33 {
+    compatible = "renesas,zmod4510";
+    reg = <0x33>;
+    label = "ZMOD4510";
+    status="okay";
+  };
+
+  sps30: sps30@69 {
+    compatible = "sensirion,sps30";
+    reg = <0x69>;
+    label = "SPS30";
+    status="okay";
+  };
 };
