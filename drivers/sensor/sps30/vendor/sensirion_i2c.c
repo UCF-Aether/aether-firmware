@@ -32,6 +32,7 @@
 #include <device.h>
 #include <drivers/i2c.h>
 #include <zephyr.h>
+#include <kernel.h>
 
 #include "sensirion_arch_config.h"
 #include "sensirion_common.h"
@@ -47,22 +48,14 @@ static struct device* i2c_dev;
  * @param bus_idx   Bus index to select
  * @returns         0 on success, an error code otherwise
  */
-int16_t sensirion_i2c_select_bus(uint8_t bus_idx) {
-    char bus_name[6] = "I2C_0";
+int16_t sensirion_i2c_set_bus(struct device *bus) {
+  if (!bus) {
+    return -EINVAL;
+  }
 
-    if (bus_idx > 9) {
-        /* Invalid bus index */
-        return STATUS_FAIL;
-    }
+  i2c_dev = bus;
 
-    bus_name[4] = bus_idx + '0';
-    i2c_dev = device_get_binding(bus_name);
-    if (i2c_dev == NULL) {
-        /* No valid device found */
-        return STATUS_FAIL;
-    }
-
-    return STATUS_OK;
+  return STATUS_OK;
 }
 
 /**

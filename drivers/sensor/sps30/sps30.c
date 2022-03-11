@@ -1,6 +1,7 @@
-#define DT_DRV_COMPAT sensirion_sps30
 
 #include <stdint.h>
+#define DT_DRV_COMPAT sensirion_sps30
+
 #include <device.h>
 #include <drivers/i2c.h>
 #include <drivers/sensor.h>
@@ -15,20 +16,31 @@ LOG_MODULE_REGISTER(sps30, CONFIG_SENSOR_LOG_LEVEL);
 
 
 static int sps30_init(const struct device *dev) {
-  const int num_retries = 5;
+  const int num_retries = 10;
   int retries_left;
+
+  struct sps30_config *config = (struct sps30_config *) dev->config;
+
+  sensirion_i2c_set_bus((struct device *) config->bus.bus);
+
+  if (!device_is_ready(config->bus.bus)) {
+    LOG_ERR("i2c bus isn't ready!");
+    return -EINVAL;
+  }
 
   for (retries_left = num_retries - 1; retries_left >= 0; retries_left--) {
     if (sps30_probe() == 0) {
       // TODO: power management?
+      LOG_DBG("SPS probed");
       sps30_start_measurement();
       return 0;
     }
 
     LOG_INF("Sensor probing failed. Retries left: %d", retries_left);
-    k_msleep(500);
+    k_msleep(100);
   }
 
+  LOG_ERR("Failed to wake-up the device");
   return -EINVAL;
 }
 
@@ -83,11 +95,11 @@ static const struct sensor_driver_api sps30_api_funcs = {
   .channel_get = sps30_channel_get,
 };
 
-static struct sps30_data sps30_data;
+struct sps30_data sps30_data;
 
 static const struct sps30_config sps30_config = {
   .bus = I2C_DT_SPEC_INST_GET(0),
 };
 
-DEVICE_DT_INST_DEFINE(0, sps30_init, NULL, &sps30_data, &sps30_config, POST_KERNEL,
+DEVICE_DT_INST_DEFINE(0, sps30_init, sps30, &sps30_data, &sps30_config, POST_KERNEL,
     CONFIG_SENSOR_INIT_PRIORITY, &sps30_api_funcs);

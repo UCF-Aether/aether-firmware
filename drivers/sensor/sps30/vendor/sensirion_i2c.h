@@ -32,6 +32,8 @@
 #ifndef SENSIRION_I2C_H
 #define SENSIRION_I2C_H
 
+#include <device.h>
+
 #include "sensirion_arch_config.h"
 
 #ifdef __cplusplus
@@ -39,16 +41,14 @@ extern "C" {
 #endif /* __cplusplus */
 
 /**
- * Select the current i2c bus by index.
+ * Select the current i2c bus.
  * All following i2c operations will be directed at that bus.
  *
- * THE IMPLEMENTATION IS OPTIONAL ON SINGLE-BUS SETUPS (all sensors on the same
- * bus)
  *
- * @param bus_idx   Bus index to select
+ * @param * bus     I2C device
  * @returns         0 on success, an error code otherwise
  */
-int16_t sensirion_i2c_select_bus(uint8_t bus_idx);
+int16_t sensirion_i2c_set_bus(struct device *bus);
 
 /**
  * Initialize all hard- and software components that are needed for the I2C
