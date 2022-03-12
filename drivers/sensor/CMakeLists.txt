@@ -1,1 +1,2 @@
 add_subdirectory_ifdef(CONFIG_ZMOD4510 zmod4510)
+add_subdirectory_ifdef(CONFIG_SPS30 sps30)

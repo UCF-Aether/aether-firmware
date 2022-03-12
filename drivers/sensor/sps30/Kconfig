@@ -1,0 +1,5 @@
+config SPS30
+	bool "SPS30 Particulate Matter Sensor"
+	depends on I2C
+	help
+	  Enable driver for SPS30 particulate matter sensor
