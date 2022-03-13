@@ -111,7 +111,7 @@ struct lorawan_downlink_cb downlink_cb = {
 
 
 // TODO: unit test
-void create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) {
+int create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) {
   uint8_t num_bytes = 0;
   struct reading reading;
 
@@ -124,6 +124,8 @@ void create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len)
       num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
     }
   }
+
+  return num_bytes;
 }
 
 
@@ -171,7 +173,7 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
       k_yield();
     }
 
-    create_packet(buffer, msgq, dr_max_bytes);
+    num_bytes = create_packet(buffer, msgq, dr_max_bytes);
 
     send(lora_dev, buffer, num_bytes);
 
