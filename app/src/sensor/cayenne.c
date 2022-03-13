@@ -18,10 +18,11 @@ uint8_t type_sizes[CAYENNE_TYPE_MAX + 1] = {
   [CAYENNE_TYPE_PM_1_0]   = sizeof(float),
   [CAYENNE_TYPE_PM_2_5]   = sizeof(float),
   [CAYENNE_TYPE_PM_4_0]   = sizeof(float),
-  [CAYENNE_TYPE_PM_10]  = sizeof(float),
+  [CAYENNE_TYPE_PM_10]    = sizeof(float),
 };
 
 
+// TODO: unit test
 int get_reading_size(struct reading *reading) {
   if (!reading) {
     return -1;
@@ -30,6 +31,8 @@ int get_reading_size(struct reading *reading) {
   return 2 + type_sizes[reading->type];
 }
 
+
+// TODO: unit test
 int cayenne_packetize(uint8_t *buffer, struct reading *reading) {
   uint8_t *val_bytes;
   uint8_t num_bytes;

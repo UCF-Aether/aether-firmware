@@ -95,6 +95,7 @@ static void dl_callback(uint8_t port, bool data_pending,
   }
 }
 
+
 static void lorwan_datarate_changed(enum lorawan_datarate dr)
 {
   uint8_t unused, max_size;
@@ -108,11 +109,28 @@ struct lorawan_downlink_cb downlink_cb = {
   .cb = dl_callback
 };
 
+
+// TODO: unit test
+void create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) {
+  uint8_t num_bytes = 0;
+  struct reading reading;
+
+  // TODO: optimize reading msg queue to not peek then read - store last read if it doesn't fit
+  while (num_bytes < max_packet_len && k_msgq_num_used_get(msgq) > 0) {
+    k_msgq_peek(msgq, (void *) &reading);
+
+    if (num_bytes + get_reading_size(&reading) <= max_packet_len) {
+      k_msgq_get(msgq, (void *) &reading, K_NO_WAIT);
+      num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
+    }
+  }
+}
+
+
 void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   const struct device *lora_dev;
   struct k_msgq *msgq = _msgq;
   struct lorawan_join_config join_cfg;
-  struct reading reading;
   int ret = 0;
 
   // Lowest DR 
@@ -148,21 +166,12 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
 
   // Main loop
   while (1) {
-    num_bytes = 0;
 
     if (k_msgq_num_used_get(msgq) == 0) {
       k_yield();
     }
 
-    // TODO: optimize reading msg queue to not peek then read - store last read if it doesn't fit
-    while (num_bytes < dr_max_bytes && k_msgq_num_used_get(msgq) > 0) {
-      k_msgq_peek(msgq, (void *) &reading);
-
-      if (num_bytes + get_reading_size(&reading) <= dr_max_bytes) {
-        k_msgq_get(msgq, (void *) &reading, K_NO_WAIT);
-        num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
-      }
-    }
+    create_packet(buffer, msgq, dr_max_bytes);
 
     send(lora_dev, buffer, num_bytes);
 
