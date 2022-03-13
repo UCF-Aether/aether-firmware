@@ -2,8 +2,13 @@
 #include <kernel.h>
 #include <device.h>
 #include <lorawan/lorawan.h>
+#include <logging/log.h>
+#include <stdlib.h>
+#include <zephyr.h>
 #include "lora.h"
 #include "../sensor/cayenne.h"
+
+LOG_MODULE_DECLARE(aether);
 
 // TODO: redo lora entry point
 // TODO: change max packet size with lorawan_register_dr_changed_callback 
@@ -20,12 +25,12 @@ static inline void set_join_cfg(struct lorawan_join_config *config) {
   uint8_t app_skey[] = LORAWAN_APP_SKEY;
   uint8_t nwk_skey[] = LORAWAN_NWK_SKEY;
 
-  join_cfg->mode = LORAWAN_ACT_ABP;
-  join_cfg->dev_eui = dev_eui;
-  join_cfg->abp.dev_addr = dev_addr;
-  join_cfg->abp.app_eui = app_eui;
-  join_cfg->abp.app_skey = app_skey;
-  join_cfg->abp.nwk_skey = nwk_skey;
+  config->mode = LORAWAN_ACT_ABP;
+  config->dev_eui = dev_eui;
+  config->abp.dev_addr = dev_addr;
+  config->abp.app_eui = app_eui;
+  config->abp.app_skey = app_skey;
+  config->abp.nwk_skey = nwk_skey;
 }
 
 
@@ -36,11 +41,11 @@ static inline void set_join_cfg(struct lorawan_join_config *config) {
   uint8_t join_eui[] = LORAWAN_JOIN_EUI;
   uint8_t app_key[] = LORAWAN_APP_KEY;
 
-  join_cfg->mode = LORAWAN_ACT_OTAA;
-  join_cfg->dev_eui = dev_eui;
-  join_cfg->otaa.join_eui = join_eui;
-  join_cfg->otaa.app_key = app_key;
-  join_cfg->otaa.nwk_key = app_key;
+  config->mode = LORAWAN_ACT_OTAA;
+  config->dev_eui = dev_eui;
+  config->otaa.join_eui = join_eui;
+  config->otaa.app_key = app_key;
+  config->otaa.nwk_key = app_key;
 }
 
 #endif /* USE_ABP */
@@ -48,14 +53,14 @@ static inline void set_join_cfg(struct lorawan_join_config *config) {
 
 #ifdef LORA_REAL_DATA
 
-static inline int send(struct device *lora_dev, uint8_t *buffer, int buffer_len) {
+static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
   int ret;
 
   do {
     ret = lorawan_send(2, buffer, buffer_len, LORAWAN_MSG_CONFIRMED);
     if (ret == -EAGAIN) {
       LOG_ERR("lorawan_send failed: %d. Continuing...\n", ret);
-      k_sleep(LORAWAN_RETRY_DELAY);
+      k_msleep(LORAWAN_RETRY_DELAY);
     }
   } while (ret == -EAGAIN);
 
@@ -70,7 +75,7 @@ static inline int send(struct device *lora_dev, uint8_t *buffer, int buffer_len)
 
 #else
 
-static inline int send(struct device *lora_dev, uint8_t *buffer, int buffer_len) {
+static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
   // TODO: log dbg array
   return 0;
 }
@@ -82,11 +87,11 @@ static void dl_callback(uint8_t port, bool data_pending,
       int16_t rssi, int8_t snr,
       uint8_t len, const uint8_t *data)
 {
-  LOG_INF("Port %d, Pending %d, RSSI %ddB, SNR %ddBm", 
+  LOG_DBG("Port %d, Pending %d, RSSI %ddB, SNR %ddBm",
       port, data_pending, rssi, snr);
 
   if (data) {
-    LOG_HEXDUMP_INF(data, len, "Payload: ");
+    LOG_HEXDUMP_DBG(data, len, "Payload: ");
   }
 }
 
@@ -95,7 +100,7 @@ static void lorwan_datarate_changed(enum lorawan_datarate dr)
   uint8_t unused, max_size;
 
   lorawan_get_payload_sizes(&unused, &max_size);
-  LOG_INF("New Datarate: DR_%d, Max Payload %d", dr, max_size);
+  LOG_DBG("New Datarate: DR_%d, Max Payload %d", dr, max_size);
 }
 
 struct lorawan_downlink_cb downlink_cb = {
@@ -118,7 +123,7 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
 
   lora_dev = device_get_binding(DEFAULT_RADIO);
   if (!lora_dev) {
-    printf("%s Device not found\n", DEFAULT_RADIO);
+    printk("%s Device not found\n", DEFAULT_RADIO);
     return;
   }
 
@@ -126,7 +131,7 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
 
   ret = lorawan_start();
   if (ret < 0) {
-    printf("lorawan_start failed: %d\n", ret);
+    printk("lorawan_start failed: %d\n", ret);
     return;
   }
 
@@ -137,7 +142,7 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   LOG_INF("Joining lorawan network");
   ret = lorawan_join(&join_cfg);
   if (ret < 0) {
-    LOG_INF("lorawan_join_network failed: %d", ret);
+    LOG_ERR("lorawan_join_network failed: %d", ret);
     return;
   }
 
@@ -154,7 +159,7 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
       k_msgq_peek(msgq, (void *) &reading);
 
       if (num_bytes + get_reading_size(&reading) <= dr_max_bytes) {
-        k_msgq_get(msgq, (void *) &reading);
+        k_msgq_get(msgq, (void *) &reading, K_NO_WAIT);
         num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
       }
     }

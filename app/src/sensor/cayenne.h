@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 
-enum cayenne_type = {
+enum cayenne_type {
   CAYENNE_TYPE_TEMP = 0,
   CAYENNE_TYPE_PRESSURE,
   CAYENNE_TYPE_HUMIDITY,
@@ -24,13 +24,15 @@ enum cayenne_type = {
   CAYENNE_TYPE_PM_1_0,
   CAYENNE_TYPE_PM_2_5,
   CAYENNE_TYPE_PM_4_0,
-  CAYENNE_TYPE_PM_10_0,
+  CAYENNE_TYPE_PM_10,
+
+  CAYENNE_TYPE_MAX = CAYENNE_TYPE_PM_10,
 };
 
 enum cayenne_channel {
   CAYENNE_CHANNEL_BME = 0,
   CAYENNE_CHANNEL_ZMOD,
-  CAYENNE_CHANNEL_PM,
+  CAYENNE_CHANNEL_SPS,
 };
 
 union reading_value {
@@ -40,8 +42,8 @@ union reading_value {
 };
 
 struct reading {
-  enum channel chan;
-  enum type type;
+  enum cayenne_channel chan;
+  enum cayenne_type type;
   union reading_value val;
 };
 

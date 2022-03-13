@@ -1,9 +1,13 @@
 #include <kernel.h>
 #include <device.h>
 #include <drivers/sensor.h>
+#include <logging/log.h>
+#include <zephyr.h>
+#include <stdlib.h>
 #include "bme688.h"
 #include "cayenne.h"
 
+LOG_MODULE_DECLARE(aether);
 
 // TODO: make configurable - nvm
 #define SPS_SLEEP 3000
@@ -23,12 +27,12 @@
 void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value pm1p0, pm2p5, pm10p0;
   struct reading reading;
-  struct device *dev_sps = GET_SENSOR();
-  struct k_msgq *msgq = (k_msgq *) _msgq;
+  const struct device *dev_sps = GET_SENSOR();
+  struct k_msgq *msgq = (struct k_msgq *) _msgq;
 
   if (!device_is_ready(dev_sps)) {
-    printk("SPS30 is not ready!\n");
-    return NULL;
+    LOG_ERR("SPS30 is not ready!\n");
+    return;
   }
 
   /* Simulate reading data from sensor when no sensor connected */

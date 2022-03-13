@@ -1,8 +1,14 @@
 #include <kernel.h>
 #include <device.h>
 #include <drivers/sensor.h>
+#include <drivers/sensor/zmod4510.h>
+#include <logging/log.h>
+#include <zephyr.h>
+#include <stdlib.h>
 #include "bme688.h"
 #include "cayenne.h"
+
+LOG_MODULE_DECLARE(aether);
 
 
 // TODO: make configurable - nvm
@@ -23,13 +29,13 @@
 void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value fast_aqi, o3_ppb;
   struct reading reading;
-  struct device *dev_zmod = GET_SENSOR();
-  struct k_msgq *msgq = (k_msgq *) _msgq;
+  const struct device *dev_zmod = GET_SENSOR();
+  struct k_msgq *msgq = (struct k_msgq *) _msgq;
 
   /* Check if the BME688 is ready */
   if (!device_is_ready(dev_zmod)) {
-    printk("BME688 is not ready!\n");
-    return NULL;
+    LOG_ERR("ZMOD4510 is not ready!\n");
+    return;
   }
 
   /* Simulate reading data from sensor when no sensor connected */
@@ -37,13 +43,8 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
 
     /* Read data from BME688 */
     sensor_sample_fetch(dev_zmod);
-    sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
-    sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
-
-    printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
-        temp.val1, temp.val2, press.val1, press.val2,
-        humidity.val1, humidity.val2, gas_res.val1,
-        gas_res.val2);
+    sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_FAST_AQI, &fast_aqi);
+    sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_O3, &o3_ppb);
 
 
     reading.chan = CAYENNE_CHANNEL_ZMOD;

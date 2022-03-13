@@ -1,8 +1,13 @@
 #include <kernel.h>
 #include <device.h>
 #include <drivers/sensor.h>
+#include <logging/log.h>
+#include <zephyr.h>
+#include <stdlib.h>
 #include "bme688.h"
 #include "cayenne.h"
+
+LOG_MODULE_DECLARE(aether);
 
 
 // TODO: make configurable - nvm
@@ -23,13 +28,13 @@
 void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value temp, press, humidity, gas_res;
   struct reading reading;
-  struct device *dev_bme = GET_SENSOR();
-  struct k_msgq *msgq = (k_msgq *) _msgq;
+  const struct device *dev_bme = GET_SENSOR();
+  struct k_msgq *msgq = (struct k_msgq *) _msgq;
 
   /* Check if the BME688 is ready */
   if (!device_is_ready(dev_bme)) {
-    printk("BME688 is not ready!\n");
-    return NULL;
+    LOG_ERR("BME688 is not ready!\n");
+    return;
   }
 
   /* Simulate reading data from sensor when no sensor connected */
@@ -41,12 +46,6 @@ void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
     sensor_channel_get(dev_bme, SENSOR_CHAN_PRESS, &press);
     sensor_channel_get(dev_bme, SENSOR_CHAN_HUMIDITY, &humidity);
     sensor_channel_get(dev_bme, SENSOR_CHAN_GAS_RES, &gas_res);
-
-    printf("T: %d.%06d; P: %d.%06d; H: %d.%06d; G: %d.%06d\n",
-        temp.val1, temp.val2, press.val1, press.val2,
-        humidity.val1, humidity.val2, gas_res.val1,
-        gas_res.val2);
-
 
     reading.chan = CAYENNE_CHANNEL_BME;
 
