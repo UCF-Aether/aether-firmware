@@ -16,9 +16,8 @@ add_definitions(
   -DENABLE_PM,
   -DENABLE_USB,
   -DUSE_ABP
+  # -DBME_REAL_DATA
+  # -DZMOD_REAL_DATA
+  -DSPS_REAL_DATA
+  -DLORA_REAL_DATA
 )
-
-#add_definitions(-DBME_REAL_DATA)
-#add_definitions(-DZMOD_REAL_DATA)
-#add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA)
-# add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA, -DSPS_REAL_DATA, -DLORA_REAL_DATA)
