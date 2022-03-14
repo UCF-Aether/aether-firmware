@@ -10,13 +10,15 @@ FILE(GLOB sensor_entry_sources src/sensor/*.c)
 FILE(GLOB io_entry_sources src/io/*.c)
 target_sources(app PRIVATE ${app_sources} ${sensor_entry_sources} ${io_entry_sources})
 
-add_definitions(-DENABLE_ZMOD, 
-                -DENABLE_BME,
-                -DENABLE_PM,
-                -DENABLE_USB)
-add_definitions(-DLORA_REAL_DATA)
+add_definitions(
+  -DENABLE_ZMOD, 
+  -DENABLE_BME,
+  -DENABLE_PM,
+  -DENABLE_USB,
+  -DUSE_ABP
+)
 
 #add_definitions(-DBME_REAL_DATA)
 #add_definitions(-DZMOD_REAL_DATA)
 #add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA)
-add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA, -DSPS_REAL_DATA, -DLORA_REAL_DATA)
+# add_definitions(-DZMOD_REAL_DATA, -DBME_REAL_DATA, -DSPS_REAL_DATA, -DLORA_REAL_DATA)

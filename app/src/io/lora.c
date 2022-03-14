@@ -10,21 +10,25 @@
 
 LOG_MODULE_DECLARE(aether);
 
-// TODO: redo lora entry point
 // TODO: change max packet size with lorawan_register_dr_changed_callback 
 
 #define LORAWAN_RETRY_DELAY 1000
 #define LORAWAN_DELAY       3000
+#define MSGQ_GET_TIMEOUT    K_USEC(50)
+#define GROUPING_TIMEOUT    K_MSEC(1)
 
-#ifndef USE_ABP
+K_TIMER_DEFINE(grouping_timer, NULL, NULL);
 
-static inline void set_join_cfg(struct lorawan_join_config *config) {
+#ifdef USE_ABP
+
+void set_join_cfg(struct lorawan_join_config *config) {
   uint32_t dev_addr = LORAWAN_DEV_ADDR;
   uint8_t dev_eui[] = LORAWAN_DEV_EUI;
   uint8_t app_eui[] = LORAWAN_APP_EUI;
   uint8_t app_skey[] = LORAWAN_APP_SKEY;
   uint8_t nwk_skey[] = LORAWAN_NWK_SKEY;
 
+  LOG_INF("Setting activation method to ABP");
   config->mode = LORAWAN_ACT_ABP;
   config->dev_eui = dev_eui;
   config->abp.dev_addr = dev_addr;
@@ -36,11 +40,12 @@ static inline void set_join_cfg(struct lorawan_join_config *config) {
 
 #else
 
-static inline void set_join_cfg(struct lorawan_join_config *config) {
+void set_join_cfg(struct lorawan_join_config *config) {
   uint8_t dev_eui[] = LORAWAN_APP_EUI;
   uint8_t join_eui[] = LORAWAN_JOIN_EUI;
   uint8_t app_key[] = LORAWAN_APP_KEY;
 
+  LOG_INF("Setting activation method to OTAA");
   config->mode = LORAWAN_ACT_OTAA;
   config->dev_eui = dev_eui;
   config->otaa.join_eui = join_eui;
@@ -76,7 +81,8 @@ static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffe
 #else
 
 static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
-  // TODO: log dbg array
+  LOG_INF("sending");
+  LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
   return 0;
 }
 
@@ -114,14 +120,21 @@ struct lorawan_downlink_cb downlink_cb = {
 int create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) {
   uint8_t num_bytes = 0;
   struct reading reading;
+  LOG_INF("WTF");
 
-  // TODO: optimize reading msg queue to not peek then read - store last read if it doesn't fit
+  k_msleep(LORAWAN_DELAY);
   while (num_bytes < max_packet_len && k_msgq_num_used_get(msgq) > 0) {
+    LOG_INF("REEEEEEEEEEEEEE");
+    LOG_INF("num bytes=%d", num_bytes);
     k_msgq_peek(msgq, (void *) &reading);
+    k_msleep(LORAWAN_DELAY);
 
     if (num_bytes + get_reading_size(&reading) <= max_packet_len) {
       k_msgq_get(msgq, (void *) &reading, K_NO_WAIT);
       num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
+    }
+    else {
+      break;
     }
   }
 
@@ -139,15 +152,12 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   //TODO: change based on DR
   uint8_t buffer[256];
   uint8_t dr_max_bytes = 11;   
-  uint8_t num_bytes;
 
   lora_dev = device_get_binding(DEFAULT_RADIO);
   if (!lora_dev) {
     printk("%s Device not found\n", DEFAULT_RADIO);
     return;
   }
-
-  set_join_cfg(&join_cfg);
 
   ret = lorawan_start();
   if (ret < 0) {
@@ -159,6 +169,9 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   lorawan_register_dr_changed_callback(lorwan_datarate_changed);
   lorawan_enable_adr(true);
 
+  // join_cfg.mode = LORAWAN_ACT_ABP;
+  set_join_cfg(&join_cfg);
+
   LOG_INF("Joining lorawan network");
   ret = lorawan_join(&join_cfg);
   if (ret < 0) {
@@ -166,17 +179,45 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
     return;
   }
 
+  LOG_INF("????????????????");
   // Main loop
+  struct reading reading;
+  int reading_size;
+  uint8_t num_bytes = 0;
+  uint8_t msgs_left = 0;
+  int ret;
   while (1) {
+    k_timer_start(&grouping_timer, GROUPING_TIMEOUT, K_NO_WAI);
+    ret = 0;
 
-    if (k_msgq_num_used_get(msgq) == 0) {
-      k_yield();
+    while (k_timer_status_get(&grouping_timer) == 0 && num_bytes < dr_max_bytes) {
+      ret = k_msgq_get(msgq, (void *) &reading, MSGQ_GET_TIMEOUT);
+      if (ret == -EAGAIN) {
+        // Restart the timer
+        k_timer_start(&grouping_timer, GROUPING_TIMEOUT, K_NO_WAI);
+        continue;
+      }
+
+      reading_size = get_reading_size(&reading);
+
+      if (num_bytes + reading_size <= dr_max_bytes) {
+        cayenne_packetize(buffer + num_bytes, &reading);
+      }
+      num_bytes += reading_size;
     }
 
-    num_bytes = create_packet(buffer, msgq, dr_max_bytes);
+    LOG_INF("msgq num=%d, free=%d", k_msgq_num_used_get(msgq), k_msgq_num_free_get(msgq));
+    
+    if (num_bytes > dr_max_bytes) {
+      send(lora_dev, buffer, num_bytes - reading_size);
+    }
+    else {
+      send(lora_dev, buffer, num_bytes);
+    }
 
-    send(lora_dev, buffer, num_bytes);
+    if (num_bytes > dr_max_bytes) {
+      num_bytes = cayenne_packetize(buffer, &reading);
+    }
 
-    k_msleep(LORAWAN_DELAY);
   }
 }
