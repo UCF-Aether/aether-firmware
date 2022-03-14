@@ -63,14 +63,17 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
 
     reading.type = CAYENNE_TYPE_PM_1_0;
     reading.val.f = (float) sensor_value_to_double(&pm1p0);
+    LOG_DBG("PM 1p0=%f", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     reading.type = CAYENNE_TYPE_PM_2_5;
     reading.val.f = (float) sensor_value_to_double(&pm2p5);
+    LOG_DBG("PM 2p5=%f", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     reading.type = CAYENNE_TYPE_PM_10;
     reading.val.f = (float) sensor_value_to_double(&pm10p0);
+    LOG_DBG("PM 10p0=%f", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     k_msleep(SPS_SLEEP);
