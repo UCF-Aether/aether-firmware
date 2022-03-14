@@ -13,22 +13,38 @@ LOG_MODULE_DECLARE(aether);
 // TODO: make configurable - nvm
 #define ZMOD_SLEEP 3000
 
-#ifdef ZMOD_REAL_DATA
+#ifndef ZMOD_REAL_DATA
 
-#define GET_SENSOR() DEVICE_DT_GET(DT_NODELABEL(zmod4510));
+void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
+  struct k_msgq *msgq = (struct k_msgq *) _msgq;
+  struct reading reading;
+
+  while (1) {
+    reading.chan = CAYENNE_CHANNEL_ZMOD;
+
+    reading.type = CAYENNE_TYPE_O3;
+    reading.val.f = 2.54;
+    k_msgq_put(msgq, &reading, K_NO_WAIT);
+
+    reading.type = CAYENNE_TYPE_FAST_AQI;
+    reading.val.u16 = 42;
+    k_msgq_put(msgq, &reading, K_NO_WAIT);
+
+    k_msleep(ZMOD_SLEEP);
+  }
+}
 
 #else
 
 // TODO: Create virtual (mock) sensor
 // https://docs.zephyrproject.org/latest/reference/drivers/index.html?highlight=device#c.DEVICE_DEFINE
 
-#endif
 
 // TODO: passing in config context
 void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value fast_aqi, o3_ppb;
   struct reading reading;
-  const struct device *dev_zmod = GET_SENSOR();
+  const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
   struct k_msgq *msgq = (struct k_msgq *) _msgq;
 
   /* Check if the BME688 is ready */
@@ -59,3 +75,5 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
     k_msleep(ZMOD_SLEEP);
   }
 }
+
+#endif
