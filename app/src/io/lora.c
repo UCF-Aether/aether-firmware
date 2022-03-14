@@ -81,7 +81,7 @@ static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffe
 #else
 
 static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
-  LOG_INF("sending");
+  LOG_INF("sending %d bytes", buffer_len);
   LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
   return 0;
 }
@@ -120,14 +120,9 @@ struct lorawan_downlink_cb downlink_cb = {
 int create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) {
   uint8_t num_bytes = 0;
   struct reading reading;
-  LOG_INF("WTF");
 
-  k_msleep(LORAWAN_DELAY);
   while (num_bytes < max_packet_len && k_msgq_num_used_get(msgq) > 0) {
-    LOG_INF("REEEEEEEEEEEEEE");
-    LOG_INF("num bytes=%d", num_bytes);
     k_msgq_peek(msgq, (void *) &reading);
-    k_msleep(LORAWAN_DELAY);
 
     if (num_bytes + get_reading_size(&reading) <= max_packet_len) {
       k_msgq_get(msgq, (void *) &reading, K_NO_WAIT);
@@ -179,45 +174,22 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
     return;
   }
 
-  LOG_INF("????????????????");
   // Main loop
   struct reading reading;
   int reading_size;
   uint8_t num_bytes = 0;
   uint8_t msgs_left = 0;
-  int ret;
   while (1) {
-    k_timer_start(&grouping_timer, GROUPING_TIMEOUT, K_NO_WAI);
-    ret = 0;
-
-    while (k_timer_status_get(&grouping_timer) == 0 && num_bytes < dr_max_bytes) {
-      ret = k_msgq_get(msgq, (void *) &reading, MSGQ_GET_TIMEOUT);
-      if (ret == 0) {
-        // Restart the timer if received a message to try to fully fill up packet
-        k_timer_start(&grouping_timer, GROUPING_TIMEOUT, K_NO_WAI);
-        continue;
-      }
-
-      reading_size = get_reading_size(&reading);
-
-      if (num_bytes + reading_size <= dr_max_bytes) {
-        cayenne_packetize(buffer + num_bytes, &reading);
-      }
-      num_bytes += reading_size;
+    // For some reason, using K_FOREVER causes a hang, when the thread should be preemptable
+    if (k_msgq_num_used_get(msgq) == 0) {
+      k_msleep(500);
+      continue;
     }
 
-    LOG_INF("msgq num=%d, free=%d", k_msgq_num_used_get(msgq), k_msgq_num_free_get(msgq));
-    
-    if (num_bytes > dr_max_bytes) {
-      send(lora_dev, buffer, num_bytes - reading_size);
-    }
-    else {
-      send(lora_dev, buffer, num_bytes);
-    }
+    num_bytes = create_packet(buffer, msgq, dr_max_bytes);
 
-    if (num_bytes > dr_max_bytes) {
-      num_bytes = cayenne_packetize(buffer, &reading);
-    }
+    send(lora_dev, buffer, num_bytes);
 
+    LOG_INF("msgq used=%d", k_msgq_num_used_get(msgq));
   }
 }

@@ -2,7 +2,7 @@
 #include <logging/log.h>
 #include <zephyr.h>
 #include <stdlib.h>
-#include "cayenne.h"
+#include <cayenne.h>
 
 LOG_MODULE_DECLARE(aether);
 
