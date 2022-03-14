@@ -73,17 +73,17 @@ void main()
                 &lora_msgq, NULL, NULL,
                 BME_PRIORITY, 0, K_NO_WAIT);
 
-  // zmod_tid = k_thread_create(&zmod_thread_data, zmod_stack_area,
-  //               K_THREAD_STACK_SIZEOF(zmod_stack_area),
-  //               zmod_entry_point,
-  //               &lora_msgq, NULL, NULL,
-  //               ZMOD_PRIORITY, 0, K_NO_WAIT);
-  //
-  // pm_tid = k_thread_create(&pm_thread_data, pm_stack_area,
-  //               K_THREAD_STACK_SIZEOF(pm_stack_area),
-  //               sps_entry_point,
-  //               &lora_msgq, NULL, NULL,
-  //               PM_PRIORITY, 0, K_NO_WAIT);
+  zmod_tid = k_thread_create(&zmod_thread_data, zmod_stack_area,
+                K_THREAD_STACK_SIZEOF(zmod_stack_area),
+                zmod_entry_point,
+                &lora_msgq, NULL, NULL,
+                ZMOD_PRIORITY, 0, K_NO_WAIT);
+
+  pm_tid = k_thread_create(&pm_thread_data, pm_stack_area,
+                K_THREAD_STACK_SIZEOF(pm_stack_area),
+                sps_entry_point,
+                &lora_msgq, NULL, NULL,
+                PM_PRIORITY, 0, K_NO_WAIT);
 
   lora_tid = k_thread_create(&lora_thread_data, lora_stack_area,
                 K_THREAD_STACK_SIZEOF(lora_stack_area),
@@ -91,23 +91,23 @@ void main()
                 &lora_msgq, NULL, NULL,
                 LORA_PRIORITY, 0, K_NO_WAIT);
 
-  // // usb_tid = k_thread_create(&usb_thread_data, usb_stack_area,
-  // //               K_THREAD_STACK_SIZEOF(usb_stack_area),
-  // //               usb_entry_point,
-  // //               NULL, NULL, NULL,
-  // //               USB_PRIORITY, 0, K_NO_WAIT);
-  //
+  // usb_tid = k_thread_create(&usb_thread_data, usb_stack_area,
+  //               K_THREAD_STACK_SIZEOF(usb_stack_area),
+  //               usb_entry_point,
+  //               NULL, NULL, NULL,
+  //               USB_PRIORITY, 0, K_NO_WAIT);
+
   #ifdef ENABLE_BME
   k_thread_start(&bme_thread_data);
   #endif
 
-  // #ifdef ENABLE_ZMOD
-  // k_thread_start(&zmod_thread_data);
-  // #endif
-  //
-  // #ifdef ENABLE_PM
-  // k_thread_start(&pm_thread_data);
-  // #endif
+  #ifdef ENABLE_ZMOD
+  k_thread_start(&zmod_thread_data);
+  #endif
+
+  #ifdef ENABLE_PM
+  k_thread_start(&pm_thread_data);
+  #endif
 
   #ifdef ENABLE_LORAWAN
   k_thread_start(&lora_thread_data);
