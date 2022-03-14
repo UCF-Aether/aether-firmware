@@ -192,8 +192,8 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
 
     while (k_timer_status_get(&grouping_timer) == 0 && num_bytes < dr_max_bytes) {
       ret = k_msgq_get(msgq, (void *) &reading, MSGQ_GET_TIMEOUT);
-      if (ret == -EAGAIN) {
-        // Restart the timer
+      if (ret == 0) {
+        // Restart the timer if received a message to try to fully fill up packet
         k_timer_start(&grouping_timer, GROUPING_TIMEOUT, K_NO_WAI);
         continue;
       }
