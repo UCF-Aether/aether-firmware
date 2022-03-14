@@ -1,3 +1,0 @@
-#define DELAY K_MSEC(10000)
-#define SLEEP K_MSEC(50000)
-#define FIFO_DELAY K_MSEC(10000)

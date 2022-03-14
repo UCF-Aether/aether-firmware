@@ -17,14 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <zephyr.h>
-
-/* Aether Headers */
-#include "sensor/cayenne.h"
-#include "sensor/bme688.h"
-#include "sensor/zmod4510.h"
-#include "sensor/sps30.h"
-#include "io/lora.h"
-#include "io/usb.h"
+#include <cayenne.h>
 
 
 LOG_MODULE_REGISTER(aether);
@@ -42,6 +35,11 @@ LOG_MODULE_REGISTER(aether);
 #define LORA_PRIORITY   5
 #define USB_PRIORITY    5
 
+
+extern void zmod_entry_point(void *_msgq, void *arg2, void *arg3);
+extern void sps_entry_point(void *_msgq, void *arg2, void *arg3);
+extern void bme_entry_point(void *_msgq, void *arg2, void *arg3);
+extern void lora_entry_point(void *_msgq, void *arg2, void *arg3);
 
 // TODO: add shit back
 

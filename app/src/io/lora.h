@@ -35,6 +35,4 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 					  0x91, 0x92}
 
 
-void lora_entry_point(void *_msgq, void *arg2, void *arg3);
-
 #endif /* __LORAWAN_ENTRY_H__ */

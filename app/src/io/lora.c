@@ -5,8 +5,8 @@
 #include <logging/log.h>
 #include <stdlib.h>
 #include <zephyr.h>
+#include <cayenne.h>
 #include "lora.h"
-#include "../sensor/cayenne.h"
 
 LOG_MODULE_DECLARE(aether);
 

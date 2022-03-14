@@ -51,7 +51,7 @@ int cayenne_packetize(uint8_t *buffer, struct reading *reading) {
   num_bytes = type_sizes[reading->type];
 
   for (int i = 0; i < num_bytes; i++) {
-    *buffer = val_bytes[ num_bytes - i - 1];  // Big endian - copy msb first
+    *buffer = val_bytes[i]; // Little endian
     buffer++;
   }
 

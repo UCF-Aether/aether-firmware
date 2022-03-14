@@ -1,4 +1,3 @@
 add_subdirectory(drivers)
-zephyr_include_directories(
-  include
-)
+add_subdirectory(lib)
+zephyr_include_directories(include)
