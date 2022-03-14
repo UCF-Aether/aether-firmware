@@ -12,7 +12,7 @@ LOG_MODULE_DECLARE(aether);
 
 // TODO: change max packet size with lorawan_register_dr_changed_callback 
 
-#define LORAWAN_RETRY_DELAY 1000
+#define LORAWAN_RETRY_DELAY 10000
 #define LORAWAN_DELAY       3000
 #define MSGQ_GET_TIMEOUT    K_USEC(50)
 #define GROUPING_TIMEOUT    K_MSEC(1)
@@ -58,8 +58,10 @@ void set_join_cfg(struct lorawan_join_config *config) {
 
 #ifdef LORA_REAL_DATA
 
-static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
+int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
   int ret;
+  LOG_INF("sending %d bytes", buffer_len);
+  LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
 
   do {
     ret = lorawan_send(2, buffer, buffer_len, LORAWAN_MSG_CONFIRMED);
@@ -80,7 +82,7 @@ static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffe
 
 #else
 
-static inline int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
+int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
   LOG_INF("sending %d bytes", buffer_len);
   LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
   return 0;
@@ -133,6 +135,11 @@ int create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) 
     }
   }
 
+  // Zero fill until 7 bytes - the min
+  // for (; num_bytes < 7; num_bytes++) {
+  //   buffer[num_bytes] = 0;
+  // }
+
   return num_bytes;
 }
 
@@ -165,7 +172,17 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   lorawan_enable_adr(true);
 
   // join_cfg.mode = LORAWAN_ACT_ABP;
-  set_join_cfg(&join_cfg);
+  uint32_t dev_addr = LORAWAN_DEV_ADDR;
+  uint8_t dev_eui[] = LORAWAN_DEV_EUI;
+  uint8_t app_eui[] = LORAWAN_APP_EUI;
+  uint8_t app_skey[] = LORAWAN_APP_SKEY;
+  uint8_t nwk_skey[] = LORAWAN_NWK_SKEY;
+  join_cfg.mode = LORAWAN_ACT_ABP;
+  join_cfg.dev_eui = dev_eui;
+  join_cfg.abp.dev_addr = dev_addr;
+  join_cfg.abp.app_eui = app_eui;
+  join_cfg.abp.app_skey = app_skey;
+  join_cfg.abp.nwk_skey = nwk_skey;
 
   LOG_INF("Joining lorawan network");
   ret = lorawan_join(&join_cfg);
@@ -182,7 +199,8 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   while (1) {
     // For some reason, using K_FOREVER causes a hang, when the thread should be preemptable
     if (k_msgq_num_used_get(msgq) == 0) {
-      k_msleep(500);
+      k_yield();
+      // k_msleep(500);
       continue;
     }
 
@@ -191,5 +209,7 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
     send(lora_dev, buffer, num_bytes);
 
     LOG_INF("msgq used=%d", k_msgq_num_used_get(msgq));
+
+    k_yield();
   }
 }
