@@ -12,12 +12,14 @@ LOG_MODULE_DECLARE(aether);
 
 // TODO: change max packet size with lorawan_register_dr_changed_callback 
 
-#define LORAWAN_RETRY_DELAY 10000
+#define LORAWAN_RETRY_DELAY 5000
 #define LORAWAN_DELAY       3000
 #define MSGQ_GET_TIMEOUT    K_USEC(50)
 #define GROUPING_TIMEOUT    K_MSEC(1)
 
 K_TIMER_DEFINE(grouping_timer, NULL, NULL);
+
+uint8_t dr_max_size = 11;   
 
 #ifdef USE_ABP
 
@@ -91,7 +93,7 @@ int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
 #endif /* LORA_REAL_DATA */
 
 
-static void dl_callback(uint8_t port, bool data_pending,
+void dl_callback(uint8_t port, bool data_pending,
       int16_t rssi, int8_t snr,
       uint8_t len, const uint8_t *data)
 {
@@ -104,11 +106,13 @@ static void dl_callback(uint8_t port, bool data_pending,
 }
 
 
-static void lorwan_datarate_changed(enum lorawan_datarate dr)
+void lorwan_datarate_changed(enum lorawan_datarate dr)
 {
   uint8_t unused, max_size;
 
   lorawan_get_payload_sizes(&unused, &max_size);
+
+  dr_max_size = max_size;
   LOG_DBG("New Datarate: DR_%d, Max Payload %d", dr, max_size);
 }
 
@@ -153,7 +157,6 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   // Lowest DR 
   //TODO: change based on DR
   uint8_t buffer[256];
-  uint8_t dr_max_bytes = 11;   
 
   lora_dev = device_get_binding(DEFAULT_RADIO);
   if (!lora_dev) {
@@ -170,6 +173,8 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   lorawan_register_downlink_callback(&downlink_cb);
   lorawan_register_dr_changed_callback(lorwan_datarate_changed);
   lorawan_enable_adr(true);
+  lorawan_set_conf_msg_tries(10);
+  lorawan_set_datarate(LORAWAN_DR_3);
 
   // join_cfg.mode = LORAWAN_ACT_ABP;
   uint32_t dev_addr = LORAWAN_DEV_ADDR;
@@ -191,6 +196,8 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
     return;
   }
 
+  // Send some dummy packets
+
   // Main loop
   struct reading reading;
   int reading_size;
@@ -204,7 +211,7 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
       continue;
     }
 
-    num_bytes = create_packet(buffer, msgq, dr_max_bytes);
+    num_bytes = create_packet(buffer, msgq, dr_max_size);
 
     send(lora_dev, buffer, num_bytes);
 
