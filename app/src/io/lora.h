@@ -1,3 +1,6 @@
+
+#ifndef __LORAWAN_ENTRY_H__
+#define __LORAWAN_ENTRY_H__
 /******************** LoRaWAN Configuration Parameters ************************/
 /* Enable or disable LoRaWAN for testing purposes */
 #define ENABLE_LORAWAN
@@ -10,7 +13,6 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 	     "No default LoRa radio specified in DT");
 #define DEFAULT_RADIO DT_LABEL(DEFAULT_RADIO_NODE)
 
-//#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 
 #ifndef USE_ABP
 /* OTAA Parameters */
@@ -39,3 +41,6 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 					  0xAA, 0xFB, 0x91, 0x75, 0xC2, 0x6E, 0xF2, 0x67,\
 					  0x91, 0x92}
 #endif
+
+
+#endif /* __LORAWAN_ENTRY_H__ */

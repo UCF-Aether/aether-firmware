@@ -1,0 +1,3 @@
+tests:
+  libraries.cayenne:
+    tags: cayenne
