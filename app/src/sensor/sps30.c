@@ -9,7 +9,7 @@
 LOG_MODULE_DECLARE(aether);
 
 // TODO: make configurable - nvm
-#define SPS_SLEEP 3000
+#define SPS_SLEEP 15000
 
 #ifndef SPS_REAL_DATA
 

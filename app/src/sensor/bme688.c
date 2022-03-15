@@ -10,7 +10,7 @@ LOG_MODULE_DECLARE(aether);
 
 
 // TODO: make configurable - nvm
-#define BME_SLEEP 3000
+#define BME_SLEEP 15000
 
 #ifndef BME_REAL_DATA
 

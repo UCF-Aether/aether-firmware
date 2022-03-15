@@ -11,7 +11,7 @@ LOG_MODULE_DECLARE(aether);
 
 
 // TODO: make configurable - nvm
-#define ZMOD_SLEEP 3000
+#define ZMOD_SLEEP 15000
 
 #ifndef ZMOD_REAL_DATA
 
