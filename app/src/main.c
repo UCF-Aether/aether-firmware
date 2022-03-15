@@ -43,7 +43,7 @@ extern void lora_entry_point(void *_msgq, void *arg2, void *arg3);
 
 // TODO: add shit back
 
-K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 16, 4);
+K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 64, 2);
 
 
 K_THREAD_STACK_DEFINE(bme_stack_area, BME_STACK_SIZE);
