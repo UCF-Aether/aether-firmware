@@ -21,6 +21,9 @@ K_TIMER_DEFINE(grouping_timer, NULL, NULL);
 
 uint8_t dr_max_size = 11;   
 
+struct lorawan_join_config join_cfg;
+
+
 #ifdef USE_ABP
 
 void set_join_cfg(struct lorawan_join_config *config) {
@@ -151,7 +154,7 @@ int create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) 
 void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   const struct device *lora_dev;
   struct k_msgq *msgq = _msgq;
-  struct lorawan_join_config join_cfg;
+  // struct lorawan_join_config join_cfg;
   int ret = 0;
 
   // Lowest DR 

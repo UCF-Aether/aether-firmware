@@ -59,7 +59,6 @@ struct k_thread pm_thread_data;
 struct k_thread lora_thread_data;
 struct k_thread usb_thread_data;
 
-
 void main() 
 {
   k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;

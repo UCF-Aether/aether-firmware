@@ -1,4 +1,5 @@
 #include <shell/shell.h>
+#include <lorawan/lorawan.h>
 
 #define OTAA_APP_EUI  1
 #define OTAA_JOIN_EUI 2
@@ -11,6 +12,7 @@
 #define ABP_APP_SKEY  5
 #define ABP_NWK_SKEY  6
 
+extern struct lorawan_join_config join_cfg;
 
 static int otaa_app_eui(const struct shell *shell, size_t argc, char **argv)
 {
@@ -50,20 +52,17 @@ static int abp_dev_addr(const struct shell *shell, size_t argc, char **argv)
     return 0;
 }
 
-static int abp_join_eui(const struct shell *shell, size_t argc, char **argv)
-{
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "ABP JoinEUI");
-
-    return 0;
-}
-
 static int abp_dev_eui(const struct shell *shell, size_t argc, char **argv)
 {
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "ABP DevEUI");
+
+    shell_print(shell, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
+                join_cfg.dev_eui[0], join_cfg.dev_eui[1],
+                join_cfg.dev_eui[2], join_cfg.dev_eui[3],
+                join_cfg.dev_eui[4], join_cfg.dev_eui[5],
+                join_cfg.dev_eui[6], join_cfg.dev_eui[7]);
 
     return 0;
 }
@@ -107,7 +106,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_otaa,
 /* ABP sub commands */
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_abp,
     SHELL_CMD_ARG(dev_addr, NULL, "Configure DevAddr.", abp_dev_addr, 2, 0),
-    SHELL_CMD_ARG(join_eui, NULL, "Configure JoinEUI.", abp_join_eui, 2, 0),
     SHELL_CMD_ARG(dev_eui,  NULL, "Configure DevEUI.",  abp_dev_eui,  2, 0),
     SHELL_CMD_ARG(app_eui,  NULL, "Configure AppEUI.",  abp_app_eui,  2, 0),
     SHELL_CMD_ARG(app_skey, NULL, "Configure AppSKey.", abp_app_skey, 2, 0),
