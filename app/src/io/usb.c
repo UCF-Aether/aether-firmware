@@ -12,13 +12,8 @@
 #define ABP_NWK_SKEY  6
 
 
-static int otaa_app_eui(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int otaa_app_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "OTAA AppEUI");
@@ -26,13 +21,8 @@ static int otaa_app_eui(const struct shell *shell, size_t argc,
     return 0;
 }
 
-static int otaa_join_eui(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int otaa_join_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "OTAA JoinEUI");
@@ -40,13 +30,8 @@ static int otaa_join_eui(const struct shell *shell, size_t argc,
     return 0;
 }
 
-static int otaa_app_key(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int otaa_app_key(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "OTAA AppKey");
@@ -56,13 +41,8 @@ static int otaa_app_key(const struct shell *shell, size_t argc,
 
 /* ABP Handlers */
 
-static int abp_dev_addr(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int abp_dev_addr(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "ABP DevAddr");
@@ -70,13 +50,8 @@ static int abp_dev_addr(const struct shell *shell, size_t argc,
     return 0;
 }
 
-static int abp_join_eui(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int abp_join_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "ABP JoinEUI");
@@ -84,13 +59,8 @@ static int abp_join_eui(const struct shell *shell, size_t argc,
     return 0;
 }
 
-static int abp_dev_eui(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int abp_dev_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "ABP DevEUI");
@@ -98,13 +68,8 @@ static int abp_dev_eui(const struct shell *shell, size_t argc,
     return 0;
 }
 
-static int abp_app_eui(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int abp_app_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "ABP AppEUI");
@@ -112,13 +77,8 @@ static int abp_app_eui(const struct shell *shell, size_t argc,
     return 0;
 }
 
-static int abp_app_skey(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int abp_app_skey(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "ABP AppSKey");
@@ -126,13 +86,8 @@ static int abp_app_skey(const struct shell *shell, size_t argc,
     return 0;
 }
 
-static int abp_nwk_skey(const struct shell *shell, size_t argc, 
-                                char **argv, void *data)
+static int abp_nwk_skey(const struct shell *shell, size_t argc, char **argv)
 {
-    int param;
-
-    param = (int) data;
-
     shell_print(shell, "argc: %d", argc);
     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
     shell_print(shell, "ABP NwkSKey");
