@@ -71,24 +71,28 @@ void main()
                 bme_entry_point,
                 &lora_msgq, NULL, NULL,
                 BME_PRIORITY, 0, K_NO_WAIT);
+  k_thread_name_set(bme_tid, "bme");
 
   zmod_tid = k_thread_create(&zmod_thread_data, zmod_stack_area,
                 K_THREAD_STACK_SIZEOF(zmod_stack_area),
                 zmod_entry_point,
                 &lora_msgq, NULL, NULL,
                 ZMOD_PRIORITY, 0, K_NO_WAIT);
+  k_thread_name_set(zmod_tid, "zmod");
 
   pm_tid = k_thread_create(&pm_thread_data, pm_stack_area,
                 K_THREAD_STACK_SIZEOF(pm_stack_area),
                 sps_entry_point,
                 &lora_msgq, NULL, NULL,
                 PM_PRIORITY, 0, K_NO_WAIT);
+  k_thread_name_set(pm_tid, "sps");
 
   lora_tid = k_thread_create(&lora_thread_data, lora_stack_area,
                 K_THREAD_STACK_SIZEOF(lora_stack_area),
                 lora_entry_point,
                 &lora_msgq, NULL, NULL,
                 LORA_PRIORITY, 0, K_NO_WAIT);
+  k_thread_name_set(lora_tid, "lora");
 
   // usb_tid = k_thread_create(&usb_thread_data, usb_stack_area,
   //               K_THREAD_STACK_SIZEOF(usb_stack_area),
