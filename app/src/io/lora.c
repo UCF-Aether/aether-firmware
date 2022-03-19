@@ -135,6 +135,13 @@ int create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) 
 
     if (num_bytes + get_reading_size(&reading) <= max_packet_len) {
       k_msgq_get(msgq, (void *) &reading, K_NO_WAIT);
+      LOG_INF("Got reading: chan=%d, type=%d, val.u16=%d, val.f=%f",
+        reading.chan,
+        reading.type,
+        reading.val.u16,
+        reading.val.f
+      );
+
       num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
     }
     else {
@@ -208,10 +215,8 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
   uint8_t msgs_left = 0;
   while (1) {
     // For some reason, using K_FOREVER causes a hang, when the thread should be preemptable
-    if (k_msgq_num_used_get(msgq) == 0) {
-      k_yield();
-      // k_msleep(500);
-      continue;
+    while (k_msgq_num_used_get(msgq) == 0) {
+      k_msleep(1000);
     }
 
     num_bytes = create_packet(buffer, msgq, dr_max_size);
@@ -219,7 +224,5 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
     send(lora_dev, buffer, num_bytes);
 
     LOG_INF("msgq used=%d", k_msgq_num_used_get(msgq));
-
-    k_yield();
   }
 }
