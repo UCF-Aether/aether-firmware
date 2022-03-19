@@ -60,4 +60,7 @@ int cayenne_packetize(uint8_t *buffer, struct reading *reading);
 
 int get_reading_size(struct reading *reading);
 
+char* cayenne_channel_name(enum cayenne_channel chan);
+char* cayenne_type_name(enum cayenne_type type);
+
 #endif /* __CAYENNE_H__ */
