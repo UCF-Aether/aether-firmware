@@ -1,2 +1,11 @@
 rsource "zmod4510/Kconfig"
 rsource "sps30/Kconfig"
+
+config CUSTOM_SENSOR_SHELL
+  bool "Enable the custom sensor shell"
+  depends on SHELL
+  select CBPRINTF_FP_SUPPORT
+  default y if !SHELL_MINIMAL
+  help
+    This shell provides access to extended sensor data.
+
