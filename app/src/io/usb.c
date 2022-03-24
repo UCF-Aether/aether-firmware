@@ -8,13 +8,20 @@
 #define OTAA_APP_EUI_LEN  8
 #define OTAA_JOIN_EUI_LEN 8
 #define OTAA_APP_KEY_LEN  16
-
 #define ABP_DEV_ADDR_LEN  4
-#define ABP_JOIN_EUI_LEN  8
 #define ABP_DEV_EUI_LEN   8
 #define ABP_APP_EUI_LEN   8
 #define ABP_APP_SKEY_LEN  16
 #define ABP_NWK_SKEY_LEN  16
+
+#define OTAA_APP_EUI  1
+#define OTAA_JOIN_EUI 2
+#define OTAA_APP_KEY  3
+#define ABP_DEV_ADDR  4
+#define ABP_DEV_EUI   5
+#define ABP_APP_EUI   6
+#define ABP_APP_SKEY  7
+#define ABP_NWK_SKEY  8
 
 extern struct lorawan_join_config join_cfg;
 
@@ -26,7 +33,7 @@ void shell_print_hex(const struct shell *shell, unsigned char *buf, int len)
 }
 
 /* Converts a hex string to an unsigned char array */
-unsigned char *hexstr_to_char(const char* hexstr, size_t len)
+unsigned char *hexstr_to_char(const char *hexstr, size_t len)
 {
     if (len % 2 != 0)
         return NULL;
@@ -40,6 +47,23 @@ unsigned char *hexstr_to_char(const char* hexstr, size_t len)
     chrs[final_len] = '\0';
 
     return chrs;
+}
+
+uint32_t uint8t_arr_to_uint32t(uint8_t *arr) {
+    uint32_t out, temp;
+
+    int i;
+    printf("\ndevaddr:");
+    for (i = 0; i < 4; i++)
+        printf("%02x", arr[i]);
+    printf("\n");
+
+    out = (uint32_t) ((uint8_t)(arr[0]) << 24 |
+                (uint8_t)(arr[1]) << 16 |
+                (uint8_t)(arr[2]) << 8 |
+                (uint8_t)(arr[3]));
+
+    return out;
 }
 
 /* Determines if input string meets requirement for given LoRaWAN parameter */
@@ -67,10 +91,14 @@ int validate_input(const struct shell *shell, unsigned char *buf, int len, int r
     return 1;
 }
 
-int config_lorawan_param(const struct shell *shell, unsigned char *str, int req_len)
+int config_lorawan_param(const struct shell *shell, unsigned char *str, 
+                            int req_len, int param_type)
 {
     int len;
     uint8_t *new_conf;
+    uint8_t *prev_conf;
+    uint32_t new_dev_addr;
+    uint32_t prev_dev_addr;
 
     len = strlen(str);
 
@@ -78,68 +106,122 @@ int config_lorawan_param(const struct shell *shell, unsigned char *str, int req_
         return -EINVAL;
     }
 
-    new_conf = hexstr_to_char(str, (size_t) len);
+    if (param_type == ABP_DEV_ADDR) {
+        new_conf = hexstr_to_char(str, (size_t) len);
+        new_dev_addr = uint8t_arr_to_uint32t(new_conf);
+    } else {
+        new_conf = hexstr_to_char(str, (size_t) len);
+    }
 
     if (new_conf == NULL) {
         shell_error(shell, "Value must have an even number of hex digits.");
         return -EINVAL;
     }
         
-    shell_print(shell, "prev: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
-                join_cfg.dev_eui[0], join_cfg.dev_eui[1],
-                join_cfg.dev_eui[2], join_cfg.dev_eui[3],
-                join_cfg.dev_eui[4], join_cfg.dev_eui[5],
-                join_cfg.dev_eui[6], join_cfg.dev_eui[7]);
 
-    shell_print(shell, "next: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
-                new_conf[0], new_conf[1],
-                new_conf[2], new_conf[3],
-                new_conf[4], new_conf[5],
-                new_conf[6], new_conf[7]);
+    switch (param_type) {
+        case OTAA_APP_EUI: 
+            break;
+        case OTAA_JOIN_EUI: 
+            break;
+        case OTAA_APP_KEY: 
+            break;
+        case ABP_DEV_ADDR:
+            prev_dev_addr = join_cfg.abp.dev_addr;
+            join_cfg.abp.dev_addr = new_dev_addr;
+            break;
+        case ABP_DEV_EUI:
+            prev_conf = join_cfg.dev_eui;
+            join_cfg.dev_eui = new_conf;
+            break;
+        case ABP_APP_EUI:
+            prev_conf = join_cfg.abp.app_eui;
+            join_cfg.abp.app_eui = new_conf;
+            break;
+        case ABP_APP_SKEY:
+            prev_conf = join_cfg.abp.app_skey;
+            join_cfg.abp.app_skey = new_conf;
+            break;
+        case ABP_NWK_SKEY:
+            prev_conf = join_cfg.abp.nwk_skey;
+            join_cfg.abp.nwk_skey = new_conf;
+            break;
+        default:
+            break;
+    }
+
+    if (req_len == 8) {
+        shell_print(shell, "prev: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
+                    prev_conf[0], prev_conf[1], prev_conf[2], prev_conf[3],
+                    prev_conf[4], prev_conf[5], prev_conf[6], prev_conf[7]);
+
+        shell_print(shell, "next: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
+                    new_conf[0], new_conf[1], new_conf[2], new_conf[3],
+                    new_conf[4], new_conf[5], new_conf[6], new_conf[7]);
+    } else if (req_len == 16) {
+        shell_print(shell, "prev: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
+                    prev_conf[0], prev_conf[1], prev_conf[2], prev_conf[3],
+                    prev_conf[4], prev_conf[5], prev_conf[6], prev_conf[7],
+                    prev_conf[8], prev_conf[9], prev_conf[10], prev_conf[11],
+                    prev_conf[12], prev_conf[13], prev_conf[14], prev_conf[15]);
+
+        shell_print(shell, "next: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
+                    new_conf[0], new_conf[1], new_conf[2], new_conf[3],
+                    new_conf[4], new_conf[5], new_conf[6], new_conf[7],
+                    new_conf[8], new_conf[9], new_conf[10], new_conf[11],
+                    new_conf[12], new_conf[13], new_conf[14], new_conf[15]);
+
+    } else if (req_len == 4) {
+        
+        shell_print(shell, "prev: %08x", prev_dev_addr);
+        shell_print(shell, "next: %08x", new_dev_addr);
+    }
 
     free(new_conf);
+
+    return 0;
 }
 
 /* OTAA Handlers */
 static int otaa_app_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], OTAA_APP_EUI_LEN);
+    return config_lorawan_param(shell, argv[1], OTAA_APP_EUI_LEN, OTAA_APP_EUI);
 }
 
 static int otaa_join_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], OTAA_JOIN_EUI_LEN);
+    return config_lorawan_param(shell, argv[1], OTAA_JOIN_EUI_LEN, OTAA_JOIN_EUI);
 }
 
 static int otaa_app_key(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], OTAA_APP_KEY_LEN);
+    return config_lorawan_param(shell, argv[1], OTAA_APP_KEY_LEN, OTAA_APP_KEY);
 }
 
 /* ABP Handlers */
 static int abp_dev_addr(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], ABP_DEV_ADDR_LEN);
+    return config_lorawan_param(shell, argv[1], ABP_DEV_ADDR_LEN, ABP_DEV_ADDR);
 }
 
 static int abp_dev_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], ABP_DEV_EUI_LEN);
+    return config_lorawan_param(shell, argv[1], ABP_DEV_EUI_LEN, ABP_DEV_EUI);
 }
 
 static int abp_app_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], ABP_APP_EUI_LEN);
+    return config_lorawan_param(shell, argv[1], ABP_APP_EUI_LEN, ABP_APP_EUI);
 }
 
 static int abp_app_skey(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], ABP_APP_SKEY_LEN);
+    return config_lorawan_param(shell, argv[1], ABP_APP_SKEY_LEN, ABP_APP_SKEY);
 }
 
 static int abp_nwk_skey(const struct shell *shell, size_t argc, char **argv)
 {
-    return config_lorawan_param(shell, argv[1], ABP_NWK_SKEY_LEN);
+    return config_lorawan_param(shell, argv[1], ABP_NWK_SKEY_LEN, ABP_NWK_SKEY);
 }
 
 
