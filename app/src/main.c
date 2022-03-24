@@ -63,8 +63,6 @@ void main()
 {
   k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
 
-  LOG_INF("Hell");
-
   /* Initialize Threads */
   bme_tid = k_thread_create(&bme_thread_data, bme_stack_area,
                 K_THREAD_STACK_SIZEOF(bme_stack_area),
@@ -94,12 +92,6 @@ void main()
                 LORA_PRIORITY, 0, K_NO_WAIT);
   k_thread_name_set(lora_tid, "lora");
 
-  // usb_tid = k_thread_create(&usb_thread_data, usb_stack_area,
-  //               K_THREAD_STACK_SIZEOF(usb_stack_area),
-  //               usb_entry_point,
-  //               NULL, NULL, NULL,
-  //               USB_PRIORITY, 0, K_NO_WAIT);
-
   #ifdef ENABLE_BME
   k_thread_start(&bme_thread_data);
   #endif
@@ -115,8 +107,4 @@ void main()
   #ifdef ENABLE_LORAWAN
   k_thread_start(&lora_thread_data);
   #endif
-
-  // #ifdef ENABLE_USB
-  // k_thread_start(&usb_thread_data);
-  // #endif
 }
