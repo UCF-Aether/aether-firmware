@@ -1,97 +1,145 @@
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 #include <shell/shell.h>
 #include <lorawan/lorawan.h>
 
-#define OTAA_APP_EUI  1
-#define OTAA_JOIN_EUI 2
-#define OTAA_APP_KEY  3
+/* Parameters lengths in bytes */
+#define OTAA_APP_EUI_LEN  8
+#define OTAA_JOIN_EUI_LEN 8
+#define OTAA_APP_KEY_LEN  16
 
-#define ABP_DEV_ADDR  1
-#define ABP_JOIN_EUI  2
-#define ABP_DEV_EUI   3
-#define ABP_APP_EUI   4
-#define ABP_APP_SKEY  5
-#define ABP_NWK_SKEY  6
+#define ABP_DEV_ADDR_LEN  4
+#define ABP_JOIN_EUI_LEN  8
+#define ABP_DEV_EUI_LEN   8
+#define ABP_APP_EUI_LEN   8
+#define ABP_APP_SKEY_LEN  16
+#define ABP_NWK_SKEY_LEN  16
 
 extern struct lorawan_join_config join_cfg;
 
-static int otaa_app_eui(const struct shell *shell, size_t argc, char **argv)
+void shell_print_hex(const struct shell *shell, unsigned char *buf, int len)
 {
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "OTAA AppEUI");
-
-    return 0;
+    for (int i = 0; i < len; i++) {
+        shell_print(shell, "%x%x", buf[i] / 16, buf[i] & 15);
+    }
 }
 
-static int otaa_join_eui(const struct shell *shell, size_t argc, char **argv)
+/* Converts a hex string to an unsigned char array */
+unsigned char *hexstr_to_char(const char* hexstr, size_t len)
 {
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "OTAA JoinEUI");
+    if (len % 2 != 0)
+        return NULL;
 
-    return 0;
+    size_t final_len = len / 2;
+    unsigned char *chrs = (unsigned char *) malloc((final_len+1) * sizeof(*chrs));
+
+    for (size_t i = 0, j = 0; j < final_len; i += 2, j++)
+        chrs[j] = (hexstr[i] % 32 + 9) % 25 * 16 + (hexstr[i+1] % 32 + 9) % 25;
+
+    chrs[final_len] = '\0';
+
+    return chrs;
 }
 
-static int otaa_app_key(const struct shell *shell, size_t argc, char **argv)
+/* Determines if input string meets requirement for given LoRaWAN parameter */
+int validate_input(const struct shell *shell, unsigned char *buf, int len, int req_len)
 {
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "OTAA AppKey");
+    int i;
 
-    return 0;
+    if (len % 2 != 0) {
+        shell_error(shell, "String must be an even length.");
+        return -EINVAL;
+    }
+
+    if (len/2 != req_len) {
+        shell_error(shell, "DevEUI must be %d bytes long. Provided string is %d bytes.", req_len, len/2);
+        return -EINVAL;
+    }
+
+    for (i = 0; i < len; i++) {
+        if (!isxdigit(buf[i])) {
+            shell_error(shell, "Value can only contain digits 0-9 and a-f.");
+            return -EINVAL;
+        }
+    }
+            
+    return 1;
 }
 
-/* ABP Handlers */
-
-static int abp_dev_addr(const struct shell *shell, size_t argc, char **argv)
+int config_lorawan_param(const struct shell *shell, unsigned char *str, int req_len)
 {
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "ABP DevAddr");
+    int len;
+    uint8_t *new_conf;
 
-    return 0;
-}
+    len = strlen(str);
 
-static int abp_dev_eui(const struct shell *shell, size_t argc, char **argv)
-{
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "ABP DevEUI");
+    if (validate_input(shell, str, len, req_len) == -EINVAL) {
+        return -EINVAL;
+    }
 
-    shell_print(shell, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
+    new_conf = hexstr_to_char(str, (size_t) len);
+
+    if (new_conf == NULL) {
+        shell_error(shell, "Value must have an even number of hex digits.");
+        return -EINVAL;
+    }
+        
+    shell_print(shell, "prev: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
                 join_cfg.dev_eui[0], join_cfg.dev_eui[1],
                 join_cfg.dev_eui[2], join_cfg.dev_eui[3],
                 join_cfg.dev_eui[4], join_cfg.dev_eui[5],
                 join_cfg.dev_eui[6], join_cfg.dev_eui[7]);
 
-    return 0;
+    shell_print(shell, "next: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", 
+                new_conf[0], new_conf[1],
+                new_conf[2], new_conf[3],
+                new_conf[4], new_conf[5],
+                new_conf[6], new_conf[7]);
+
+    free(new_conf);
+}
+
+/* OTAA Handlers */
+static int otaa_app_eui(const struct shell *shell, size_t argc, char **argv)
+{
+    return config_lorawan_param(shell, argv[1], OTAA_APP_EUI_LEN);
+}
+
+static int otaa_join_eui(const struct shell *shell, size_t argc, char **argv)
+{
+    return config_lorawan_param(shell, argv[1], OTAA_JOIN_EUI_LEN);
+}
+
+static int otaa_app_key(const struct shell *shell, size_t argc, char **argv)
+{
+    return config_lorawan_param(shell, argv[1], OTAA_APP_KEY_LEN);
+}
+
+/* ABP Handlers */
+static int abp_dev_addr(const struct shell *shell, size_t argc, char **argv)
+{
+    return config_lorawan_param(shell, argv[1], ABP_DEV_ADDR_LEN);
+}
+
+static int abp_dev_eui(const struct shell *shell, size_t argc, char **argv)
+{
+    return config_lorawan_param(shell, argv[1], ABP_DEV_EUI_LEN);
 }
 
 static int abp_app_eui(const struct shell *shell, size_t argc, char **argv)
 {
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "ABP AppEUI");
-
-    return 0;
+    return config_lorawan_param(shell, argv[1], ABP_APP_EUI_LEN);
 }
 
 static int abp_app_skey(const struct shell *shell, size_t argc, char **argv)
 {
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "ABP AppSKey");
-
-    return 0;
+    return config_lorawan_param(shell, argv[1], ABP_APP_SKEY_LEN);
 }
 
 static int abp_nwk_skey(const struct shell *shell, size_t argc, char **argv)
 {
-    shell_print(shell, "argc: %d", argc);
-    shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-    shell_print(shell, "ABP NwkSKey");
-
-    return 0;
+    return config_lorawan_param(shell, argv[1], ABP_NWK_SKEY_LEN);
 }
 
 
@@ -121,94 +169,3 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_lorawan_config,
 
 SHELL_CMD_REGISTER(lorawan_config, &sub_lorawan_config, 
                    "Configure the LoRaWAN parameters", NULL);
-
-// /* OTAA handlers */
-// static int cmd_otaa_handler(const struct shell *shell, size_t argc, 
-//                                 char **argv, void *data)
-// {
-//     // ARG_UNUSED(argc);
-//     // ARG_UNUSED(argv);
-
-//     int param;
-
-//     param = (int) data;
-
-//     switch(param) {
-//         case OTAA_APP_EUI:
-//             shell_print(shell, "configure otaa app eui");
-//             break;
-//         case OTAA_JOIN_EUI:
-//             shell_print(shell, "configure otaa join eui");
-//             break;
-//         case OTAA_APP_KEY:
-//             shell_print(shell, "configure otaa app key");
-//             break;
-//     }
-//         return 0;
-// }
-
-
-
-// /* ABP handlers */
-// static int cmd_abp_handler(const struct shell *shell, size_t argc, 
-//                                 char **argv, void *data)
-// {
-//     // ARG_UNUSED(argc);
-//     // ARG_UNUSED(argv);
-
-//     int param;
-
-//     param = (int) data;
-
-//     shell_print(shell, "argc: %d", argc);
-//     shell_print(shell, "arg0: %s arg1: %s", argv[0], argv[1]);
-
-//     switch(param) {
-//         case ABP_DEV_ADDR:
-//             shell_print(shell, "configure abp dev addr");
-//             break;
-//         case ABP_JOIN_EUI:
-//             shell_print(shell, "configure abp join eui");
-//             break;
-//         case ABP_DEV_EUI:
-//             shell_print(shell, "configure abp dev eui");
-//             break;
-//         case ABP_APP_EUI:
-//             shell_print(shell, "configure abp app eui");
-//             break;
-//         case ABP_APP_SKEY:
-//             shell_print(shell, "configure abp app skey");
-//             break;
-//         case ABP_NWK_SKEY:
-//             shell_print(shell, "configure abp nwk skey");
-//             break;
-//     }
-
-//     return 0;
-// }
-
-// /* Confiugre OTAA values */
-// SHELL_SUBCMD_DICT_SET_CREATE(sub_otaa, cmd_otaa_handler,
-//     (app_eui, OTAA_APP_EUI), 
-//     (join_eui, OTAA_JOIN_EUI), 
-//     (app_key, OTAA_JOIN_EUI)
-// );
-
-// /* Configure ABP values */
-// SHELL_SUBCMD_DICT_SET_CREATE(sub_abp, cmd_abp_handler,
-//     (dev_addr, ABP_DEV_ADDR), 
-//     (join_eui, ABP_JOIN_EUI), 
-//     (dev_eui,  ABP_DEV_EUI),
-//     (app_eui,  ABP_APP_EUI),
-//     (app_skey, ABP_APP_SKEY),
-//     (nwk_skey, ABP_NWK_SKEY)
-// );
-
-// SHELL_STATIC_SUBCMD_SET_CREATE(sub_lorawan_config,
-//     SHELL_CMD_ARG(abp,   &sub_abp, "Configure ABP parameters.", NULL, 2, 2),
-//     SHELL_CMD_ARG(otaa,   &sub_otaa, "Configure OTAA parameters.", NULL, 2, 2),
-//     SHELL_SUBCMD_SET_END
-// );
-
-// SHELL_CMD_REGISTER(lorawan_config, &sub_lorawan_config, 
-//                    "Configure the LoRaWAN parameters", NULL);
