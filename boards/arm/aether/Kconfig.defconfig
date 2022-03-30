@@ -1,0 +1,8 @@
+# Aether board configuration
+
+if BOARD_AETHER
+
+config BOARD
+	default "aether_board"
+
+endif # BOARD_AETHER
