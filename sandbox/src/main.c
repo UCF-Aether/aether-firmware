@@ -37,6 +37,13 @@ void main() {
     return;
   }
 
+  if (!pm_device_wakeup_enable((struct device *) usb_detect.port, true)) {
+    printk("Error: failed to enabled wakeup on %s pin %d\n",
+        usb_detect.port->name,
+        usb_detect.pin);
+    return;
+  }
+
   ret = gpio_pin_configure_dt(&usb_detect, GPIO_INPUT);
   if (ret) {
     printk("Error %d: failed to configure pin %d\n", ret, usb_detect.pin);
