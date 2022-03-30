@@ -21,3 +21,5 @@
     status="okay";
   };
 };
+
+/* vim: ft=dts */

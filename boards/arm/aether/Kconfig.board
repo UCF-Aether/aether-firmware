@@ -1,0 +1,5 @@
+# Aether board
+
+config BOARD_AETHER
+	bool "Aether Air Quality Sensor Board"
+	depends on SOC_STM32WLE5XX
