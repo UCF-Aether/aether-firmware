@@ -29,12 +29,15 @@
 
 	aliases {
 		lora0 = &lora;
+    led0 = &status0;
 	};
 
-  usb_wakeup: usb_wakeup {
+  gpio_keys {
     compatible = "gpio-keys";
-    gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
-    label = "Wakeup from USB";
+    usb_wakeup: usb_wakeup {
+      gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+      label = "Wakeup from USB";
+    };
   };
 
   pwr_5v_domain: pwr_5v_domain {
@@ -86,6 +89,10 @@ sensors: &i2c2 {
     status="okay";
     power-domain = <&pwr_5v_domain>;
   };
+};
+
+&gpiob {
+  wakeup-source;
 };
 
 &cpu0 {
