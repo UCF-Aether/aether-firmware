@@ -2,7 +2,7 @@
   clock-frequency = < 0x186a0 >;
   bme680: bme680@76 {
     compatible = "bosch,bme680";
-    reg = <0x76>;
+    reg = <0x77>;
     label = "BME680";
     status="okay";
   };
