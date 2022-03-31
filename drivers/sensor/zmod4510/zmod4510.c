@@ -147,13 +147,13 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
   struct sensor_value humidity, temp;
   sensor_sample_fetch(humidity_sensor);
   sensor_channel_get(humidity_sensor, SENSOR_CHAN_HUMIDITY, &humidity);
-  LOG_INF("humidity=%f%%", sensor_value_to_double(&humidity));
+  LOG_DBG("humidity=%f%%", sensor_value_to_double(&humidity));
 #endif /* CONFIG_ZMOD4510_HUMIDITY */
 
 #ifdef CONFIG_ZMOD4510_TEMPERATURE
   sensor_sample_fetch(temp_sensor);
   sensor_channel_get(temp_sensor, SENSOR_CHAN_AMBIENT_TEMP, &temp);
-  LOG_INF("temperature=%f C", sensor_value_to_double(&temp));
+  LOG_DBG("temperature=%f C", sensor_value_to_double(&temp));
 #endif /* CONFIG_ZMOD4510_TEMPERATURE */
 
   LOG_DBG("Starting sample fetch");

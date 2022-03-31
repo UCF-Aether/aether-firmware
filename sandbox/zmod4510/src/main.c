@@ -2,6 +2,9 @@
 #include <zephyr.h>
 #include <device.h>
 #include <drivers/sensor.h>
+#include <logging/log.h>
+
+LOG_MODULE_REGISTER(zmod4510_sandbox);
 
 void main() {
   struct sensor_value aqi, humidity, temp;
@@ -26,7 +29,8 @@ void main() {
     sensor_channel_get(bme, SENSOR_CHAN_HUMIDITY, &humidity);
     sensor_channel_get(bme, SENSOR_CHAN_AMBIENT_TEMP, &temp);
 
-    printk("aqi=%f, humidity=%f, temp=%f\n", 
+    // Warn just to differentiate the logs
+    LOG_WRN("aqi=%f, humidity=%f, temp=%f\n", 
         sensor_value_to_double(&aqi),
         sensor_value_to_double(&humidity),
         sensor_value_to_double(&temp));
