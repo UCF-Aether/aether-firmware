@@ -20,6 +20,14 @@ LOG_MODULE_REGISTER(zmod4510, CONFIG_SENSOR_LOG_LEVEL);
 int8_t zmod4510_reg_read(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf, uint8_t len);
 int8_t zmod4510_reg_write(uint8_t addr, uint8_t reg_addr, uint8_t *data_buf, uint8_t len);
 
+#ifdef CONFIG_ZMOD4510_HUMIDITY
+const static struct device *humidity_sensor = DEVICE_DT_GET(DT_INST_PROP(0, humidity_sensor));
+#endif /* CONFIG_ZMOD4510_HUMIDITY */
+
+#ifdef CONFIG_ZMOD4510_TEMPERATURE
+const static struct device *temp_sensor = DEVICE_DT_GET(DT_INST_PROP(0, temperature_sensor));
+#endif /* CONFIG_ZMOD4510_TEMPERATURE */
+
 void zmod4510_delay(uint32_t ms)
 {
 	k_sleep(K_MSEC(ms));
@@ -135,6 +143,19 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
 
 	__ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL);
 
+#ifdef CONFIG_ZMOD4510_HUMIDITY
+  struct sensor_value humidity, temp;
+  sensor_sample_fetch(humidity_sensor);
+  sensor_channel_get(humidity_sensor, SENSOR_CHAN_HUMIDITY, &humidity);
+  LOG_INF("humidity=%f%%", sensor_value_to_double(&humidity));
+#endif /* CONFIG_ZMOD4510_HUMIDITY */
+
+#ifdef CONFIG_ZMOD4510_TEMPERATURE
+  sensor_sample_fetch(temp_sensor);
+  sensor_channel_get(temp_sensor, SENSOR_CHAN_AMBIENT_TEMP, &temp);
+  LOG_INF("temperature=%f C", sensor_value_to_double(&temp));
+#endif /* CONFIG_ZMOD4510_TEMPERATURE */
+
   LOG_DBG("Starting sample fetch");
   ret = zmod4xxx_start_measurement(zmod_dev);
   if (ret) {
@@ -176,13 +197,17 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
   }
   LOG_HEXDUMP_DBG(data->adc_result, ZMOD4510_ADC_DATA_LEN, "adc results");
 
-  // TODO: Add DT parameter for selecting humidity and temperature sensor to read these values from.
-	/* Humidity and temperature measurements are needed for ambient
-  compensation.
-   *  It is highly recommented to have a real humidity and temperature sensor
-   *  for these values! */
+#ifdef CONFIG_ZMOD4510_HUMIDITY
+  data->humidity_pct = sensor_value_to_double(&humidity);
+#else
 	data->humidity_pct = 50.0; // 50% RH
+#endif /* CONFIG_ZMOD4510_HUMIDITY */
+
+#ifdef CONFIG_ZMOD4510_TEMPERATURE
+  data->temperature_degc = sensor_value_to_double(&temp);
+#else
 	data->temperature_degc = 20.0; // 20 degC
+#endif /* CONFIG_ZMOD4510_TEMPERATURE */
 
   float rmox;
   ret = zmod4xxx_calc_rmox(zmod_dev, data->adc_result, &rmox);

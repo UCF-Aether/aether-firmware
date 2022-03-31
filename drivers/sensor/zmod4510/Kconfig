@@ -1,5 +1,19 @@
 config ZMOD4510
-	bool "ZMOD4510 Air Quality Sensor"
+	bool "Enabled ZMOD4510 air quality sensor"
 	depends on I2C
 	help
 	  Enable driver for ZMOD4510 air quality sensor
+
+config ZMOD4510_HUMIDITY
+  bool "Enable ZMOD4510 humidity compensation"
+  depends on ZMOD4510
+  default n
+  help 
+    Enable support for humidity compensation. humidity-sensor must be added to DTS.
+
+config ZMOD4510_TEMPERATURE
+  bool "Enable ZMOD4510 temperature compensation"
+  depends on ZMOD4510
+  default n
+  help 
+    Enable support for temperature compensation. temperature-sensor must be added to DTS.

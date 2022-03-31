@@ -1,8 +1,8 @@
 &i2c2 {
   clock-frequency = < 0x186a0 >;
-  bme680: bme680@76 {
+  bme680: bme680@77 {
     compatible = "bosch,bme680";
-    reg = <0x76>;
+    reg = <0x77>;
     label = "BME680";
     status="okay";
   };
@@ -12,6 +12,8 @@
     reg = <0x33>;
     label = "ZMOD4510";
     status="okay";
+    humidity-sensor = < &bme680 >;
+    temperature-sensor = < &bme680 >;
   };
 
   sps30: sps30@69 {
@@ -22,4 +24,4 @@
   };
 };
 
-/* vim: ft=dts */
+// vim: ft=dts
