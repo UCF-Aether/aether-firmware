@@ -1,6 +1,6 @@
 manifest:
   self:
-    path: Aether-Firmware-Zephyr
+    path: aether
 
   remotes:
     - name: zephyrproject-rtos
