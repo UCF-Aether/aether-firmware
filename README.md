@@ -11,7 +11,7 @@ Install a GNU ARM toolchain.
 ## Initial Setup
 Before you can build this application, we must first setup a Zephyr envionment. This can be done as follows:
 ```
-west init -m https://github.com/UCF-Aether/Aether-Firmware-Zephyr aether-workspace
+west init -m https://github.com/UCF-Aether/aether-firmware aether-workspace
 cd aether-workspace
 west update
 ```
