@@ -1,12 +1,13 @@
 #ifndef __SENSOR_ZMOD4510_H__
 #define __SENSOR_ZMOD4510_H__
+
 #include <device.h>
 #include <drivers/i2c.h>
 
-#include "zmod4510_config_oaq2.h"
-#include "zmod4xxx_types.h"
-#include "zmod4xxx.h"
-#include "oaq_2nd_gen.h"
+#include "vendor/zmod4510_config_oaq2.h"
+#include "vendor/zmod4xxx_types.h"
+#include "vendor/zmod4xxx.h"
+#include "vendor/oaq_2nd_gen.h"
 
 struct zmod4510_data {
   zmod4xxx_dev_t zmod_dev;

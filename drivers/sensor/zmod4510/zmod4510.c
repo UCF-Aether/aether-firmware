@@ -2,10 +2,10 @@
 #define DT_DRV_COMPAT renesas_zmod4510
 
 #include "zmod4510.h"
-#include "oaq_2nd_gen.h"
-#include "zmod4510_config_oaq2.h"
-#include "zmod4xxx.h"
-#include "zmod4xxx_types.h"
+#include "vendor/oaq_2nd_gen.h"
+#include "vendor/zmod4510_config_oaq2.h"
+#include "vendor/zmod4xxx.h"
+#include "vendor/zmod4xxx_types.h"
 #include <drivers/i2c.h>
 #include <drivers/sensor.h>
 #include <device.h>
