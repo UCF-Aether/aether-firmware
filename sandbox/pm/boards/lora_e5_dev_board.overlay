@@ -1,3 +1,5 @@
+usb_wakeup: &user_button {};
+
 &i2c2 {
   clock-frequency = < 0x186a0 >;
   bme680: bme680@76 {
@@ -21,3 +23,13 @@
     status="okay";
   };
 };
+
+&cpu0 {
+	cpu-power-states = <&stop0>;
+};
+
+&gpioa {
+  wakeup-source;
+};
+
+// vim: ft=dts
