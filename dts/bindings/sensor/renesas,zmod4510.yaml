@@ -4,3 +4,13 @@ description: |
 compatible: "renesas,zmod4510"
 
 include: i2c-device.yaml
+
+properties:
+  humidity-sensor:
+    type: phandle
+    required: false
+    description: Sensor to feed humidity readings (float) to the zmod4510.
+  temperature-sensor:
+    type: phandle
+    required: false
+    description: Sensor to feed temperature readings (float) to the zmod4510.
