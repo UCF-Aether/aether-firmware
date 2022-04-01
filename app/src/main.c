@@ -94,7 +94,8 @@ int init_status_led() {
 #ifdef CONFIG_PM
 void usb_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
   if (gpio_pin_get_dt(&usb_detect)) {
-    disable_sleep();
+    if (pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE))
+      disable_sleep();
     printk("usb inserted\n");
     // gpio_pin_set_dt(&led, 1);
   }
@@ -134,6 +135,10 @@ int init_usb_detect() {
 
   gpio_init_callback(&usb_detect_cb_data, usb_handler, BIT(usb_detect.pin));
   gpio_add_callback(usb_detect.port, &usb_detect_cb_data);
+
+  if (!gpio_pin_get_dt(&usb_detect)) {
+    enable_sleep();
+  }
 
   return 0;
 }
@@ -185,7 +190,4 @@ void main()
 #endif /* CONFIG_LORAWAN */
 #endif /* CONFIG_THREAD_MONITOR */
 
-  if (!gpio_pin_get_dt(&usb_detect)) {
-    enable_sleep();
-  }
 }
