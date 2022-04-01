@@ -54,18 +54,18 @@
 			substate-id = <1>;
 			min-residency-us = <100>;
 		};
-		stop1: state1 {
-			compatible = "zephyr,power-state";
-			power-state-name = "suspend-to-idle";
-			substate-id = <2>;
-			min-residency-us = <500>;
-		};
-		stop2: state2 {
-			compatible = "zephyr,power-state";
-			power-state-name = "suspend-to-idle";
-			substate-id = <3>;
-			min-residency-us = <900>;
-		};
+		/* stop1: state1 { */
+		/* 	compatible = "zephyr,power-state"; */
+		/* 	power-state-name = "suspend-to-idle"; */
+		/* 	substate-id = <2>; */
+		/* 	min-residency-us = <500>; */
+		/* }; */
+		/* stop2: state2 { */
+		/* 	compatible = "zephyr,power-state"; */
+		/* 	power-state-name = "suspend-to-idle"; */
+		/* 	substate-id = <3>; */
+		/* 	min-residency-us = <900>; */
+		/* }; */
 	};
 };
 
@@ -96,7 +96,8 @@ sensors: &i2c2 {
 };
 
 &cpu0 {
-	cpu-power-states = <&stop0 &stop1 &stop2>;
+	/* cpu-power-states = <&stop0 &stop1 &stop2>; */
+	cpu-power-states = <&stop0>;
 };
 
 &lptim1 {

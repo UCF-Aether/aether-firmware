@@ -7,6 +7,8 @@
 #include <device.h>
 #include <drivers/gpio.h>
 #include <logging/log.h>
+#include <pm/pm.h>
+#include <pm/device.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -17,14 +19,19 @@ static struct gpio_dt_spec usb_detect = GPIO_DT_SPEC_GET(DT_NODELABEL(usb_wakeup
 static struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 static struct gpio_callback usb_detect_cb_data;
 
+const struct pm_state_info states[] = PM_STATE_INFO_LIST_FROM_DT_CPU(DT_NODELABEL(cpu0));
+
 void usb_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
   if (gpio_pin_get_dt(&usb_detect)) {
+    pm_constraint_set(PM_STATE_SUSPEND_TO_IDLE);
     printk("usb inserted\n");
     gpio_pin_set_dt(&led, 1);
   }
   else {
     printk("usb removed\n");
     gpio_pin_set_dt(&led, 0);
+    if (!pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE))
+      pm_constraint_release(PM_STATE_SUSPEND_TO_IDLE);
   }
 }
 
@@ -62,6 +69,14 @@ void main() {
   gpio_init_callback(&usb_detect_cb_data, usb_handler, BIT(usb_detect.pin));
   gpio_add_callback(usb_detect.port, &usb_detect_cb_data);
   printk("Set up usb detect at %s pin %d\n", usb_detect.port->name, usb_detect.pin);
+
+  if (gpio_pin_get_dt(&usb_detect)) {
+    pm_constraint_set(PM_STATE_SUSPEND_TO_IDLE);
+    gpio_pin_set_dt(&led, 1);
+  }
+  else {
+    gpio_pin_set_dt(&led, 0);
+  }
 
   while (1) {
     LOG_INF("testing");
