@@ -40,7 +40,7 @@ void main() {
 
   ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
   if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, usb_detect.pin);
+    printk("Error %d: failed to configure pin %d\n", ret, led.pin);
     return;
   }
 
