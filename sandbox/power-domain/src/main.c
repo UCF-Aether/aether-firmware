@@ -10,61 +10,110 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <pm/device.h>
+#include <pm/device_runtime.h>
 
 LOG_MODULE_REGISTER(sandbox);
 
-static struct gpio_dt_spec usb_detect = GPIO_DT_SPEC_GET(DT_NODELABEL(usb_wakeup), gpios);
-static struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
-static struct gpio_callback usb_detect_cb_data;
+#define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain)
+//#define RED_LED_1 DT_NODELABEL(red_led_1)
+#define LED0_NODE DT_ALIAS(led0)
 
-void usb_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
-  if (gpio_pin_get_dt(&usb_detect)) {
-    printk("usb inserted\n");
-    gpio_pin_set_dt(&led, 1);
-  }
-  else {
-    printk("usb removed\n");
-    gpio_pin_set_dt(&led, 0);
-  }
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+
+static int dev_init(const struct device *dev)
+{
+	ARG_UNUSED(dev);
+
+	return 0;
+}
+
+static int domain_pm_action(const struct device *dev,
+	enum pm_device_action action)
+{
+	int rc = 0;
+
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+		/* Switch power on */
+		pm_device_children_action_run(dev, PM_DEVICE_ACTION_RESUME, NULL);
+		break;
+	case PM_DEVICE_ACTION_SUSPEND:
+		pm_device_children_action_run(dev, PM_DEVICE_ACTION_SUSPEND, NULL);
+		break;
+	case PM_DEVICE_ACTION_TURN_ON:
+		__fallthrough;
+	case PM_DEVICE_ACTION_TURN_OFF:
+		break;
+	default:
+		rc = -ENOTSUP;
+	}
+
+	return rc;
+}
+
+static int led_pm_action(const struct device *dev,
+                           enum pm_device_action action)
+{
+    switch (action) {
+    case PM_DEVICE_ACTION_SUSPEND:
+        /* suspend the device */
+        gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
+        break;
+    case PM_DEVICE_ACTION_RESUME:
+        /* resume the device */
+        gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
+        break;
+    case PM_DEVICE_ACTION_TURN_ON:
+        /* configure the device into low power mode */
+        
+        break;
+    case PM_DEVICE_ACTION_TURN_OFF:
+        /* prepare the device for power down */
+        
+        break;
+    default:
+        return -ENOTSUP;
+    }
+
+    return 0;
 }
 
 void main() {
   int ret;
 
-  ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-  if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, usb_detect.pin);
-    return;
-  }
+  
+  static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
 
-  if (!pm_device_wakeup_enable((struct device *) usb_detect.port, true)) {
-    printk("Error: failed to enabled wakeup on %s pin %d\n",
-        usb_detect.port->name,
-        usb_detect.pin);
-    return;
-  }
+	if (!device_is_ready(led.port)) {
+		return;
+	}
+  //gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
 
-  ret = gpio_pin_configure_dt(&usb_detect, GPIO_INPUT);
-  if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, usb_detect.pin);
-    return;
-  }
 
-  ret = gpio_pin_interrupt_configure_dt(&usb_detect, GPIO_INT_EDGE_BOTH);
-  if (ret) {
-    printk("Error %d: failed to configure interupt on %s pin %d\n", 
-        ret, 
-        usb_detect.port->name, 
-        usb_detect.pin);
-    return;
-  }
+  //pm_device_runtime_init_suspended(led.port);
+  //pm_device_runtime_init_suspended(pwr_5v_domain);
 
-  gpio_init_callback(&usb_detect_cb_data, usb_handler, BIT(usb_detect.pin));
-  gpio_add_callback(usb_detect.port, &usb_detect_cb_data);
-  printk("Set up usb detect at %s pin %d\n", usb_detect.port->name, usb_detect.pin);
+  //pm_device_runtime_enable(pwr_5v_domain);
+	//pm_device_runtime_enable(led.port);
 
   while (1) {
-    LOG_INF("testing");
-    k_msleep(500);
+    //pm_device_runtime_get(led.port);
+    //pm_device_runtime_get(pwr_5v_domain);
+    //pm_device_action_run(led.port, PM_DEVICE_ACTION_RESUME);
+    //k_msleep(10000);
+    //k_busy_wait(K_MSEC(2000));
+    pm_device_action_run(led.port, PM_DEVICE_ACTION_SUSPEND);
+    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_SUSPEND);
+    //k_busy_wait(K_MSEC(2000));
   }
 }
+
+
+PM_DEVICE_DT_DEFINE(PWR_5V_DOMAIN, domain_pm_action);
+DEVICE_DT_DEFINE(PWR_5V_DOMAIN, dev_init, PM_DEVICE_DT_GET(PWR_5V_DOMAIN),
+		 NULL, NULL, POST_KERNEL, 10, NULL);
+
+PM_DEVICE_DT_DEFINE(LED0_NODE, led_pm_action);
+DEVICE_DT_DEFINE(LED0_NODE, dev_init, PM_DEVICE_DT_GET(LED0_NODE),
+		 NULL, NULL, POST_KERNEL, 20, NULL);
