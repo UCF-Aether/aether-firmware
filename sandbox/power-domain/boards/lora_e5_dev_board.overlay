@@ -4,11 +4,26 @@ usb_wakeup: &user_button {};
 / {
   pwr_5v_domain: pwr_5v_domain {
     status = "okay";
-    compatible = "power-domain-gpios";
+
+    // I'm thinking this should be "power-domain" since thats how they have it in the examples.
+    compatible = "power-domain";
     label = "5v_power_domain";
-    enable-gpios = <&red_led_1>;
+
+
+    //enable-gpios = <&red_led_1 5 GPIO_ACTIVE_LOW>;
   };
+
+  // add power-domain to red_led_1 seperatly?
+  red_led_1 {
+    power-domain = <&pwr_5v_domain>;
+  };
+
 };
+
+// Maybe we need to control the led using the GPIO directly?
+// &gpiob {
+//   power-domain = <&pwr_5v_domain>;
+// };
 
 &i2c2 {
   clock-frequency = < 0x186a0 >;
