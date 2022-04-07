@@ -42,8 +42,8 @@
 
   pwr_5v_domain: pwr_5v_domain {
     status = "okay";
-    compatible = "power-domain-gpios";
-    label = "5v_power_domain";
+    compatible = "power-domain-gpio";
+    label = "pwr_5v_domain";
     enable-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
   };
 
