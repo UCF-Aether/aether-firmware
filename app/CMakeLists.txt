@@ -13,11 +13,11 @@ target_sources(app PRIVATE ${app_sources} ${sensor_entry_sources} ${io_entry_sou
 add_definitions(
   -DENABLE_ZMOD, 
   -DENABLE_BME,
-  -DENABLE_PM,
+  # -DENABLE_PM,
   -DENABLE_USB,
   -DUSE_ABP
-  # -DBME_REAL_DATA
-  # -DZMOD_REAL_DATA
-  -DSPS_REAL_DATA
+  -DBME_REAL_DATA
+  -DZMOD_REAL_DATA
+  # -DSPS_REAL_DATA
   -DLORA_REAL_DATA
 )
