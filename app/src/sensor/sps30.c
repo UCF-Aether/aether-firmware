@@ -149,7 +149,3 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
 }
 
 #endif
-
-PM_DEVICE_DT_DEFINE(PWR_5V_DOMAIN, pwr_5v_domain);
-DEVICE_DT_DEFINE(PWR_5V_DOMAIN, dev_init, PM_DEVICE_DT_GET(PWR_5V_DOMAIN),
-		 NULL, NULL, POST_KERNEL, 10, NULL);
