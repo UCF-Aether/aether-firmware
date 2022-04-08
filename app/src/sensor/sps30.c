@@ -104,10 +104,7 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
   const struct device *dev_sps = DEVICE_DT_GET(DT_NODELABEL(sps30));
   struct k_msgq *msgq = (struct k_msgq *) _msgq;
 
-  static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
-
-  pm_device_runtime_enable(pwr_5v_domain);
-  pm_device_runtime_init_suspended(pwr_5v_domain);
+  pm_device_runtime_enable(dev_sps);
 
   if (!device_is_ready(dev_sps)) {
     LOG_ERR("SPS30 is not ready!\n" );
@@ -116,9 +113,6 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
 
   /* Simulate reading data from sensor when no sensor connected */
   while (1) {
-
-    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
-    k_msleep(2000);
 
     sensor_sample_fetch(dev_sps);
     sensor_channel_get(dev_sps, SENSOR_CHAN_PM_1_0, &pm1p0);
@@ -141,8 +135,6 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
     reading.val.f = (float) sensor_value_to_double(&pm10p0);
     LOG_DBG("PM 10p0=%f", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
-
-    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_SUSPEND);
 
     k_msleep(SPS_SLEEP);
   }

@@ -19,6 +19,7 @@
 #include <drivers/gpio.h>
 #include <pm/pm.h>
 #include <pm/device.h>
+#include <pm/device_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -30,7 +31,7 @@ LOG_MODULE_REGISTER(aether);
 
 #define BME_STACK_SIZE    1024
 #define ZMOD_STACK_SIZE   1024
-#define SPS_STACK_SIZE     1024
+#define SPS_STACK_SIZE     2048
 #define LORA_STACK_SIZE   2048
 #define USB_STACK_SIZE    1024
 
@@ -51,6 +52,7 @@ static struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 #ifdef CONFIG_PM
 static struct gpio_dt_spec usb_detect = GPIO_DT_SPEC_GET(DT_NODELABEL(usb_wakeup), gpios);
 static struct gpio_callback usb_detect_cb_data;
+static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
 #endif /* CONFIG_PM */
 
 K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 64, 2);
@@ -136,10 +138,18 @@ int init_usb_detect() {
   gpio_init_callback(&usb_detect_cb_data, usb_handler, BIT(usb_detect.pin));
   gpio_add_callback(usb_detect.port, &usb_detect_cb_data);
 
+  gpio_port_value_t portb;
+  if (gpio_port_get_raw(usb_detect.port, &portb)) {
+    printk("unable to read portb\n");
+    return -EINVAL;
+  }
+  printk("port=%x\n", portb);
   if (!gpio_pin_get_dt(&usb_detect)) {
-    enable_sleep();
+    printk("sleep re-enabled\n");
+    // enable_sleep();
   }
 
+  disable_sleep();
   return 0;
 }
 
@@ -153,11 +163,16 @@ int pre_kernel2_init(const struct device *dev) {
 }
 
 // Disable sleep while sensors initialize
-SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
+// SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
 
+
+#define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain)
 
 void main() 
 {
+
+  pm_device_runtime_enable(pwr_5v_domain);
+
   // (ノಠ益ಠ)ノ彡┻━┻
   // It causes the I2C bus to lose arbitration??????????
   // if (init_status_led()) {
@@ -166,10 +181,10 @@ void main()
   // }
 
 #ifdef CONFIG_PM
-  if (init_usb_detect()) {
-    LOG_ERR("Unable to initialize usb detect");
-    return;
-  }
+  // if (init_usb_detect()) {
+  //   LOG_ERR("Unable to initialize usb detect");
+  //   return;
+  // }
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_THREAD_MONITOR

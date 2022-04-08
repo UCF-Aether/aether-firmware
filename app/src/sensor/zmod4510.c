@@ -36,11 +36,6 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
 
 #else
 
-// TODO: Create virtual (mock) sensor
-// https://docs.zephyrproject.org/latest/reference/drivers/index.html?highlight=device#c.DEVICE_DEFINE
-
-
-// TODO: passing in config context
 void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value fast_aqi, o3_ppb;
   struct reading reading;
@@ -66,11 +61,13 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
 
     reading.type = CAYENNE_TYPE_O3;
     reading.val.f = (float) sensor_value_to_double(&o3_ppb);
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
+    // if (msgq) k_msgq_put(msgq, &reading, K_NO_WAIT);
+    // k_msleep(500);
 
     reading.type = CAYENNE_TYPE_FAST_AQI;
     reading.val.u16 = fast_aqi.val1;
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
+    // if (msgq) k_msgq_put(msgq, &reading, K_NO_WAIT);
+    // k_msleep(500);
 
     k_msleep(ZMOD_SLEEP);
   }

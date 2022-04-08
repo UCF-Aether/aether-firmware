@@ -8,7 +8,9 @@
 #include <init.h>
 #include <logging/log.h>
 #include <kernel.h>
-
+#include <pm/pm.h>
+#include <pm/device.h>
+#include <pm/device_runtime.h>
 #include "sps30.h"
 #include "vendor/sps30.h"
 
@@ -90,6 +92,36 @@ static int sps30_channel_get(const struct device *dev, enum sensor_channel chan,
   return ret;
 }
 
+static int sps30_pm_action(const struct device *dev,
+	enum pm_device_action action)
+{
+	int rc = 0;
+  printk("dev=%p, action=%d\n", dev, action);
+  k_msleep(100);
+
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+		/* Switch power on */
+    sps30_init(dev);
+    LOG_DBG("sps30 resume");
+		break;
+	case PM_DEVICE_ACTION_SUSPEND:
+    printk("sps30 suspend");
+		break;
+	case PM_DEVICE_ACTION_TURN_ON:
+    printk("sps30 turn on");
+		break;
+	case PM_DEVICE_ACTION_TURN_OFF:
+    printk("sps30 turn off");
+		break;
+	default:
+		rc = -ENOTSUP;
+	}
+
+	return rc;
+}
+
+
 static const struct sensor_driver_api sps30_api_funcs = {
   .sample_fetch = sps30_sample_fetch,
   .channel_get = sps30_channel_get,
@@ -101,5 +133,6 @@ static const struct sps30_config sps30_config = {
   .bus = I2C_DT_SPEC_INST_GET(0),
 };
 
-DEVICE_DT_INST_DEFINE(0, sps30_init, NULL, &sps30_data, &sps30_config, POST_KERNEL,
+PM_DEVICE_DT_DEFINE(DT_NODELABEL(sps30), sps30_pm_action);
+DEVICE_DT_DEFINE(DT_NODELABEL(sps30), sps30_init, PM_DEVICE_DT_GET(DT_NODELABEL(sps30)), &sps30_data, &sps30_config, POST_KERNEL,
     CONFIG_SENSOR_INIT_PRIORITY, &sps30_api_funcs);
