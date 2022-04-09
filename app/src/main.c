@@ -159,19 +159,39 @@ int init_usb_detect() {
 int pre_kernel2_init(const struct device *dev) {
   ARG_UNUSED(dev);
   disable_sleep();
+
+  int ret;
+
+  static struct gpio_dt_spec sps_gpio_power = GPIO_DT_SPEC_GET(DT_NODELABEL(pwr_5v_domain), enable_gpios);
+  
+  /* Configure SPS30 GPIO pin */
+  ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
+  if (ret) {
+    printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
+    return -EINVAL;
+  }
+
+  /* Enable SPS30 GPIO pin */
+  ret = gpio_pin_set_dt(&sps_gpio_power, 1);
+  if (ret) {
+    printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
+    return -EINVAL;
+  }
+
   return 0;
 }
 
-// Disable sleep while sensors initialize
-// SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
+SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
 
+#define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain);
 
-#define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain)
 
 void main() 
 {
-
   pm_device_runtime_enable(pwr_5v_domain);
+  pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
+
+
 
   // (ノಠ益ಠ)ノ彡┻━┻
   // It causes the I2C bus to lose arbitration??????????
