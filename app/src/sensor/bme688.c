@@ -9,43 +9,8 @@
 LOG_MODULE_DECLARE(aether);
 
 
-// TODO: make configurable - nvm
 #define BME_SLEEP 15000
 
-#ifndef BME_REAL_DATA
-
-void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
-  struct k_msgq *msgq = (struct k_msgq *) _msgq;
-  struct reading reading;
-
-  while (1) {
-    LOG_INF("Fetching data");
-
-    reading.chan = CAYENNE_CHANNEL_BME;
-
-    reading.type = CAYENNE_TYPE_TEMP;
-    reading.val.f = 27.3;
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
-
-    reading.type = CAYENNE_TYPE_PRESSURE;
-    reading.val.f = 18.3;
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
-
-    reading.type = CAYENNE_TYPE_HUMIDITY;
-    reading.val.f = 56.4;
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
-
-    reading.type = CAYENNE_TYPE_GAS_RES;
-    reading.val.f = 100000.0;
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
-
-    k_msleep(BME_SLEEP);
-  }
-}
-
-#else
-
-// TODO: passing in config context
 void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value temp, press, humidity, gas_res;
   struct reading reading;
@@ -90,5 +55,3 @@ void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
     k_msleep(BME_SLEEP);
   }
 }
-
-#endif

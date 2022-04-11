@@ -9,32 +9,7 @@
 
 LOG_MODULE_DECLARE(aether);
 
-
-// TODO: make configurable - nvm
 #define ZMOD_SLEEP 15000
-
-#ifndef ZMOD_REAL_DATA
-
-void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
-  struct k_msgq *msgq = (struct k_msgq *) _msgq;
-  struct reading reading;
-
-  while (1) {
-    reading.chan = CAYENNE_CHANNEL_ZMOD;
-
-    reading.type = CAYENNE_TYPE_O3;
-    reading.val.f = 2.54;
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
-
-    reading.type = CAYENNE_TYPE_FAST_AQI;
-    reading.val.u16 = 42;
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
-
-    k_msleep(ZMOD_SLEEP);
-  }
-}
-
-#else
 
 void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value fast_aqi, o3_ppb;
@@ -72,5 +47,3 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
     k_msleep(ZMOD_SLEEP);
   }
 }
-
-#endif
