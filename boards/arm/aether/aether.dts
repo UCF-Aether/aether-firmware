@@ -48,12 +48,12 @@
   };
 
 	power-states {
-		/* stop0: state0 { */
-		/* 	compatible = "zephyr,power-state"; */
-		/* 	power-state-name = "suspend-to-idle"; */
-		/* 	substate-id = <1>; */
-		/* 	min-residency-us = <100>; */
-		/* }; */
+		stop0: state0 {
+			compatible = "zephyr,power-state";
+			power-state-name = "suspend-to-idle";
+			substate-id = <1>;
+			min-residency-us = <100>;
+		};
 		/* stop1: state1 { */
 		/* 	compatible = "zephyr,power-state"; */
 		/* 	power-state-name = "suspend-to-idle"; */
@@ -97,7 +97,7 @@ sensors: &i2c2 {
 
 &cpu0 {
 	/* cpu-power-states = <&stop0 &stop1 &stop2>; */
-	/* cpu-power-states = <&stop0>; */
+	cpu-power-states = <&stop0>;
 };
 
 &lptim1 {
