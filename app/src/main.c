@@ -144,12 +144,12 @@ int init_usb_detect() {
     return -EINVAL;
   }
   printk("port=%x\n", portb);
-  if (!gpio_pin_get_dt(&usb_detect)) {
-    printk("sleep re-enabled\n");
 #ifdef CONFIG_PM
-    enable_sleep();
-#endif /* CONFIG_PM */
+  if (gpio_pin_get_dt(&usb_detect)) {
+    printk("sleep re-enabled\n");
+    disable_sleep();
   }
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM
   disable_sleep();
@@ -167,24 +167,6 @@ int pre_kernel2_init(const struct device *dev) {
   disable_sleep();
 #endif /* CONFIG_PM */
 
-  int ret;
-
-  static struct gpio_dt_spec sps_gpio_power = GPIO_DT_SPEC_GET(DT_NODELABEL(pwr_5v_domain), enable_gpios);
-  
-  /* Configure SPS30 GPIO pin */
-  ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
-  if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
-    return -EINVAL;
-  }
-
-  /* Enable SPS30 GPIO pin */
-  ret = gpio_pin_set_dt(&sps_gpio_power, 1);
-  if (ret) {
-    printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
-    return -EINVAL;
-  }
-
   return 0;
 }
 
@@ -195,6 +177,9 @@ SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
 
 void main() 
 {
+  printk("pls\n");
+  // enable_sleep();
+
   // (ノಠ益ಠ)ノ彡┻━┻
   // It causes the I2C bus to lose arbitration??????????
   // if (init_status_led()) {
@@ -202,14 +187,14 @@ void main()
   //   return;
   // }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_DEVICE_RUNTIME
   pm_device_runtime_enable(pwr_5v_domain);
   pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
   // if (init_usb_detect()) {
   //   LOG_ERR("Unable to initialize usb detect");
   //   return;
   // }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_DEVICE_RUNTIME */
 
 #ifdef CONFIG_THREAD_MONITOR
 #ifdef CONFIG_BME680
