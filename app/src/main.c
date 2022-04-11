@@ -146,10 +146,15 @@ int init_usb_detect() {
   printk("port=%x\n", portb);
   if (!gpio_pin_get_dt(&usb_detect)) {
     printk("sleep re-enabled\n");
-    // enable_sleep();
+#ifdef CONFIG_PM
+    enable_sleep();
+#endif /* CONFIG_PM */
   }
 
+#ifdef CONFIG_PM
   disable_sleep();
+#endif /* CONFIG_PM */
+
   return 0;
 }
 
@@ -158,7 +163,9 @@ int init_usb_detect() {
 
 int pre_kernel2_init(const struct device *dev) {
   ARG_UNUSED(dev);
+#ifdef CONFIG_PM
   disable_sleep();
+#endif /* CONFIG_PM */
 
   int ret;
 
@@ -188,11 +195,6 @@ SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
 
 void main() 
 {
-  pm_device_runtime_enable(pwr_5v_domain);
-  pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
-
-
-
   // (ノಠ益ಠ)ノ彡┻━┻
   // It causes the I2C bus to lose arbitration??????????
   // if (init_status_led()) {
@@ -201,6 +203,8 @@ void main()
   // }
 
 #ifdef CONFIG_PM
+  pm_device_runtime_enable(pwr_5v_domain);
+  pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
   // if (init_usb_detect()) {
   //   LOG_ERR("Unable to initialize usb detect");
   //   return;
