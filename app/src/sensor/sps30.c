@@ -16,29 +16,31 @@ LOG_MODULE_REGISTER(sps30_loop, CONFIG_SENSOR_LOG_LEVEL);
 
 #define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain)
 
+static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
+const struct device *dev_sps = DEVICE_DT_GET(DT_NODELABEL(sps30));
 
 void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct sensor_value pm1p0, pm2p5, pm10p0;
   struct reading reading;
-  const struct device *dev_sps = DEVICE_DT_GET(DT_NODELABEL(sps30));
   struct k_msgq *msgq = (struct k_msgq *) _msgq;
-  static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
   float pm2_5_sum = 0, pm10_sum = 0;
+  enum pm_device_state state;
 
+  pm_device_runtime_enable(dev_sps);
+
+#ifdef CONFIG_POWER_DOMAIN
   pm_device_runtime_enable(pwr_5v_domain);
-  pm_device_runtime_enable(pwr_5v_domain);
+#endif /* CONFIG_POWER_DOMAIN */
 
-  //printk("dev->state->initialzed=%d  dev->state->init_res=%d\n", dev_sps->state->initialized, dev_sps->state->init_res);
-
+  pm_device_state_get(pwr_5v_domain, &state);
+  LOG_WRN("domain: %d", state);
   // if (!device_is_ready(dev_sps)) {
   //   LOG_ERR("SPS30 is not ready!\n" );
   //   return;
   // }
 
   while (1) {
-
-    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
-    pm_device_action_run(dev_sps, PM_DEVICE_ACTION_RESUME);
+    LOG_WRN("sps get: %d", pm_device_runtime_get(dev_sps));
 
     /* Allow time for device to turn on */
     k_msleep(30000);
@@ -68,9 +70,7 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
     LOG_DBG("PM 10p0=%f", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
-    pm_device_action_run(dev_sps, PM_DEVICE_ACTION_SUSPEND);
-    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_SUSPEND);
-
+    LOG_WRN("sps put", pm_device_runtime_put(dev_sps));
     k_msleep(SPS_SLEEP);
   }
 }

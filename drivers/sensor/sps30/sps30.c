@@ -25,22 +25,6 @@ static int sps30_init(const struct device *dev) {
   int retries_left;
   int ret;
 
-  // /* Configure SPS30 GPIO pin */
-  // ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
-  // if (ret) {
-  //   printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
-  //   return -EINVAL;
-  // }
-
-  // /* Enable SPS30 GPIO pin */
-  // ret = gpio_pin_set_dt(&sps_gpio_power, 1);
-  // if (ret) {
-  //   printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
-  //   return -EINVAL;
-  // }
-
-  pm_device_runtime_get(dev);
-
   struct sps30_config *config = (struct sps30_config *) dev->config;
 
   sensirion_i2c_set_bus((struct device *) config->bus.bus);
@@ -50,11 +34,13 @@ static int sps30_init(const struct device *dev) {
     return -EINVAL;
   }
 
+  pm_device_runtime_get(dev);
   for (retries_left = num_retries - 1; retries_left >= 0; retries_left--) {
     if (sps30_probe() == 0) {
       // TODO: power management?
       LOG_DBG("SPS probed");
       sps30_start_measurement();
+      pm_device_runtime_put(dev);
       return 0;
     }
 
@@ -63,6 +49,7 @@ static int sps30_init(const struct device *dev) {
   }
 
   LOG_ERR("Failed to wake-up the device");
+  pm_device_runtime_put(dev);
   return -EINVAL;
 }
 
@@ -71,11 +58,16 @@ static int sps30_sample_fetch(const struct device *dev, enum sensor_channel chan
   struct sps30_data *data = (struct sps30_data *) dev->data;
   int ret;
 
+  pm_device_runtime_get(dev);
+
   ret = sps30_read_measurement(&m);
   if (ret < 0) {
     LOG_ERR("Error reading measurement: %d", ret);
+    pm_device_runtime_put(dev);
     return -EINVAL;
   }
+
+  pm_device_runtime_put(dev);
 
   data->mc_1p0 = m.mc_1p0;
   data->mc_2p5 = m.mc_2p5;
@@ -122,20 +114,20 @@ static int sps30_pm_action(const struct device *dev,
 	case PM_DEVICE_ACTION_RESUME:
 		/* Switch power on */
     sps30_init(dev);
-    LOG_DBG("sps30 resume");
+    LOG_WRN("sps30 resume");
 		break;
 	case PM_DEVICE_ACTION_SUSPEND:
-    LOG_DBG("sps30 suspend");
+    LOG_WRN("sps30 suspend");
 		break;
 	case PM_DEVICE_ACTION_TURN_ON:
 
-    k_msleep(1000);
-
-    sps30_init(dev);
-    LOG_DBG("sps30 turn on");
+    // k_msleep(1000);
+    //
+    // sps30_init(dev);
+    LOG_WRN("sps30 turn on");
 		break;
 	case PM_DEVICE_ACTION_TURN_OFF:
-    LOG_DBG("sps30 turn off");
+    LOG_WRN("sps30 turn off");
 		break;
 	default:
 		rc = -ENOTSUP;
@@ -156,6 +148,6 @@ static const struct sps30_config sps30_config = {
   .bus = I2C_DT_SPEC_INST_GET(0),
 };
 
-PM_DEVICE_DT_DEFINE(DT_NODELABEL(sps30), sps30_pm_action);
-DEVICE_DT_DEFINE(DT_NODELABEL(sps30), sps30_init, PM_DEVICE_DT_GET(DT_NODELABEL(sps30)), &sps30_data, &sps30_config, POST_KERNEL,
+PM_DEVICE_DT_INST_DEFINE(0, sps30_pm_action);
+DEVICE_DT_INST_DEFINE(0, sps30_init, PM_DEVICE_DT_INST_GET(0), &sps30_data, &sps30_config, POST_KERNEL,
     CONFIG_SENSOR_INIT_PRIORITY, &sps30_api_funcs);

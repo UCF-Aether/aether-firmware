@@ -178,7 +178,7 @@ SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
 void main() 
 {
   printk("pls\n");
-  // enable_sleep();
+  enable_sleep();
 
   // (ノಠ益ಠ)ノ彡┻━┻
   // It causes the I2C bus to lose arbitration??????????
@@ -186,15 +186,13 @@ void main()
   //   LOG_ERR("Unable to initialize status led");
   //   return;
   // }
+#ifdef CONFIG_PM
+  if (init_usb_detect()) {
+    LOG_ERR("Unable to initialize usb detect");
+    return;
+  }
+#endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_DEVICE_RUNTIME
-  pm_device_runtime_enable(pwr_5v_domain);
-  pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
-  // if (init_usb_detect()) {
-  //   LOG_ERR("Unable to initialize usb detect");
-  //   return;
-  // }
-#endif /* CONFIG_PM_DEVICE_RUNTIME */
 
 #ifdef CONFIG_THREAD_MONITOR
 #ifdef CONFIG_BME680
