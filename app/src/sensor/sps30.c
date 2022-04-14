@@ -27,10 +27,7 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
   enum pm_device_state state;
 
   pm_device_runtime_enable(dev_sps);
-
-#ifdef CONFIG_POWER_DOMAIN
   pm_device_runtime_enable(pwr_5v_domain);
-#endif /* CONFIG_POWER_DOMAIN */
 
   pm_device_state_get(pwr_5v_domain, &state);
   LOG_WRN("domain: %d", state);
