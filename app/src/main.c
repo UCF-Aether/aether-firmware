@@ -108,14 +108,12 @@ void usb_debounce_timer_handler(struct k_timer *timer) {
 
 void usb_debounce_power_set(struct k_work *work) {
   if (gpio_pin_get_dt(&usb_detect)) {
-    if (pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE))
-      disable_sleep();
-    printk("usb inserted\n"); // TODO: remove since this is called in isr
+    disable_sleep();
+    printk("usb inserted\n");
   }
   else {
-    printk("usb removed\n");  // TODO: remove since this is called in isr
-    if (!pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE))
-      enable_sleep();
+    printk("usb removed\n");
+    enable_sleep();
   }
 }
 
@@ -124,7 +122,6 @@ void usb_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pi
   k_timer_start(&usb_debounce_timer, USB_DETECT_DEBOUNCE, K_NO_WAIT);
   printk("handler_count=%d\n", handler_count);
 }
-
 
 int init_usb_detect() {
   int ret;
