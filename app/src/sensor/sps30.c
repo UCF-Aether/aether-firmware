@@ -25,19 +25,31 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
   struct k_msgq *msgq = (struct k_msgq *) _msgq;
   float pm2_5_sum = 0, pm10_sum = 0;
   enum pm_device_state state;
+  int ret;
 
-  pm_device_runtime_enable(dev_sps);
-  pm_device_runtime_enable(pwr_5v_domain);
+  //pm_device_runtime_enable(dev_sps);
+  //pm_device_runtime_enable(pwr_5v_domain);
 
-  pm_device_state_get(pwr_5v_domain, &state);
+  //pm_device_state_get(pwr_5v_domain, &state);
   LOG_WRN("domain: %d", state);
   // if (!device_is_ready(dev_sps)) {
   //   LOG_ERR("SPS30 is not ready!\n" );
   //   return;
   // }
 
+  static struct gpio_dt_spec sps_gpio_power = GPIO_DT_SPEC_GET(DT_NODELABEL(sps_power_pins), gpios);
+
+  /* Configure SPS30 GPIO pin */
+  ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
+  if (ret) {
+    printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
+    return -EINVAL;
+  }
+
   while (1) {
-    LOG_WRN("sps get: %d", pm_device_runtime_get(dev_sps));
+    //disable_sleep();
+
+    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
 
     /* Allow time for device to turn on */
     k_msleep(30000);
@@ -52,7 +64,7 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
       pm2_5_sum += (float) sensor_value_to_double(&pm2p5);
       pm10_sum += (float) sensor_value_to_double(&pm10p0);
 
-      k_msleep(5);
+      k_msleep(10000);
     }
 
     reading.chan = CAYENNE_CHANNEL_SPS;
@@ -69,7 +81,9 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
     LOG_INF("PM 10 = %.03f um", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
-    LOG_WRN("sps put", pm_device_runtime_put(dev_sps));
+    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_SUSPEND);
+
+    //enable_sleep();
     k_msleep(SPS_SLEEP);
   }
 }

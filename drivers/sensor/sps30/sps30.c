@@ -17,7 +17,7 @@
 
 LOG_MODULE_REGISTER(sps30, CONFIG_SENSOR_LOG_LEVEL);
 
-//static struct gpio_dt_spec sps_gpio_power = GPIO_DT_SPEC_GET(DT_NODELABEL(sps_power_pins), gpios);
+static struct gpio_dt_spec sps_gpio_power = GPIO_DT_SPEC_GET(DT_NODELABEL(sps_power_pins), gpios);
 
 
 static int sps30_init(const struct device *dev) {
@@ -34,13 +34,27 @@ static int sps30_init(const struct device *dev) {
     return -EINVAL;
   }
 
-  pm_device_runtime_get(dev);
+    /* Configure SPS30 GPIO pin */
+  ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
+  if (ret) {
+    printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
+    return -EINVAL;
+  }
+
+      /* Enable SPS30 GPIO pin */
+    ret = gpio_pin_set_dt(&sps_gpio_power, 1);
+    if (ret) {
+      printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
+      return -EINVAL;
+    }
+    
   for (retries_left = num_retries - 1; retries_left >= 0; retries_left--) {
     if (sps30_probe() == 0) {
       // TODO: power management?
       LOG_DBG("SPS probed");
       sps30_start_measurement();
-      pm_device_runtime_put(dev);
+      /* Enable SPS30 GPIO pin */
+
       return 0;
     }
 
@@ -58,16 +72,27 @@ static int sps30_sample_fetch(const struct device *dev, enum sensor_channel chan
   struct sps30_data *data = (struct sps30_data *) dev->data;
   int ret;
 
-  pm_device_runtime_get(dev);
-
-  ret = sps30_read_measurement(&m);
-  if (ret < 0) {
-    LOG_ERR("Error reading measurement: %d", ret);
-    pm_device_runtime_put(dev);
+    /* Configure SPS30 GPIO pin */
+  ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
+  if (ret) {
+    printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
     return -EINVAL;
   }
 
-  pm_device_runtime_put(dev);
+      /* Enable SPS30 GPIO pin */
+    ret = gpio_pin_set_dt(&sps_gpio_power, 1);
+    if (ret) {
+      printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
+      return -EINVAL;
+    }
+  ret = sps30_read_measurement(&m);
+  if (ret < 0) {
+    LOG_ERR("Error reading measurement: %d", ret);
+          /* Enable SPS30 GPIO pin */
+
+    return -EINVAL;
+  }
+
 
   data->mc_1p0 = m.mc_1p0;
   data->mc_2p5 = m.mc_2p5;
@@ -118,12 +143,14 @@ static int sps30_pm_action(const struct device *dev,
 		break;
 	case PM_DEVICE_ACTION_SUSPEND:
     LOG_WRN("sps30 suspend");
+
+
 		break;
 	case PM_DEVICE_ACTION_TURN_ON:
 
     // k_msleep(1000);
     //
-    // sps30_init(dev);
+    sps30_init(dev);
     LOG_WRN("sps30 turn on");
 		break;
 	case PM_DEVICE_ACTION_TURN_OFF:

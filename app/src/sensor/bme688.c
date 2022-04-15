@@ -25,6 +25,7 @@ void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
 
   /* Simulate reading data from sensor when no sensor connected */
   while (1) {
+    //disable_sleep();
 
     LOG_INF("Fetching data");
     /* Read data from BME688 */
@@ -55,6 +56,7 @@ void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
     reading.val.f = (float) sensor_value_to_double(&gas_res);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
+    //enable_sleep();
     k_msleep(BME_SLEEP);
   }
 }

@@ -25,6 +25,7 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
 
   /* Simulate reading data from sensor when no sensor connected */
   while (1) {
+    //disable_sleep();
 
     /* Read data from BME688 */
     sensor_sample_fetch(dev_zmod);
@@ -46,6 +47,7 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
     if (msgq) k_msgq_put(msgq, &reading, K_NO_WAIT);
     // k_msleep(500);
 
+    //enable_sleep();
     k_msleep(ZMOD_SLEEP);
   }
 }
