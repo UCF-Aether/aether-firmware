@@ -60,11 +60,13 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
     reading.type = CAYENNE_TYPE_PM_2_5;
     reading.val.f = pm2_5_sum / NUM_READINGS;
     LOG_DBG("PM 2p5=%f", reading.val.f);
+    LOG_INF("PM 2.5 = %.03f um", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     reading.type = CAYENNE_TYPE_PM_10;
     reading.val.f = pm10_sum / NUM_READINGS;
     LOG_DBG("PM 10p0=%f", reading.val.f);
+    LOG_INF("PM 10 = %.03f um", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     LOG_WRN("sps put", pm_device_runtime_put(dev_sps));

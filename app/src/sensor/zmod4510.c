@@ -36,11 +36,13 @@ void zmod_entry_point(void *_msgq, void *arg2, void *arg3) {
 
     reading.type = CAYENNE_TYPE_O3;
     reading.val.f = (float) sensor_value_to_double(&o3_ppb);
+    LOG_INF("O3 = %03f ppb", reading.val.f);
     if (msgq) k_msgq_put(msgq, &reading, K_NO_WAIT);
     // k_msleep(500);
 
     reading.type = CAYENNE_TYPE_FAST_AQI;
     reading.val.u16 = fast_aqi.val1;
+    LOG_INF("Fast AQI = %d", reading.val.u16);
     if (msgq) k_msgq_put(msgq, &reading, K_NO_WAIT);
     // k_msleep(500);
 

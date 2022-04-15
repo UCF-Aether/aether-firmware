@@ -38,14 +38,17 @@ void bme_entry_point(void *_msgq, void *arg2, void *arg3) {
 
     reading.type = CAYENNE_TYPE_TEMP;
     reading.val.f = (float) sensor_value_to_double(&temp);
+    LOG_INF("Temperature = %.03f C", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     reading.type = CAYENNE_TYPE_PRESSURE;
     reading.val.f = (float) sensor_value_to_double(&press);
+    LOG_INF("Pressure = %.03f hPa", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     reading.type = CAYENNE_TYPE_HUMIDITY;
     reading.val.f = (float) sensor_value_to_double(&humidity);
+    LOG_INF("Humidity = %.03f%%", reading.val.f);
     k_msgq_put(msgq, &reading, K_NO_WAIT);
 
     reading.type = CAYENNE_TYPE_GAS_RES;
