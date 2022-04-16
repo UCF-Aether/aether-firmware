@@ -41,7 +41,7 @@ union reading_value {
   uint16_t u16;
 };
 
-struct reading {
+struct __attribute__((aligned(4))) reading {
   enum cayenne_channel chan;
   enum cayenne_type type;
   union reading_value val;

@@ -14,10 +14,16 @@
 #include <kernel.h>
 #include <logging/log.h>
 #include <lorawan/lorawan.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <zephyr.h>
 #include <cayenne.h>
+#include <drivers/gpio.h>
+#include <pm/pm.h>
+#include <pm/device.h>
+#include <pm/device_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include "pm.h"
 
 
 LOG_MODULE_REGISTER(aether);
@@ -25,86 +31,182 @@ LOG_MODULE_REGISTER(aether);
 
 #define BME_STACK_SIZE    1024
 #define ZMOD_STACK_SIZE   1024
-#define PM_STACK_SIZE     1024
+#define SPS_STACK_SIZE     2048
 #define LORA_STACK_SIZE   2048
 #define USB_STACK_SIZE    1024
 
+#define SENSOR_THREAD_STACK_SIZE 2048
+#define PM_SENSOR_THREAD_STACK_SIZE 2048
+
+#define SENSOR_PRIORITY 5
+#define PM_SENSOR_PRIORITY 5
+
 #define BME_PRIORITY    5
 #define ZMOD_PRIORITY   5
-#define PM_PRIORITY     5
+#define SPS_PRIORITY     5
 #define LORA_PRIORITY   5
 #define USB_PRIORITY    5
 
 
-extern void zmod_entry_point(void *_msgq, void *arg2, void *arg3);
-extern void sps_entry_point(void *_msgq, void *arg2, void *arg3);
-extern void bme_entry_point(void *_msgq, void *arg2, void *arg3);
+// extern void zmod_entry_point(void *_msgq, void *arg2, void *arg3);
+// extern void pm_sensor_thread(void *_msgq, void *arg2, void *arg3);
+// extern void bme_entry_point(void *_msgq, void *arg2, void *arg3);
 extern void lora_entry_point(void *_msgq, void *arg2, void *arg3);
 
-// TODO: add shit back
+extern void pm_sensor_thread(void*, void*, void*);
+extern void sensor_thread(void*, void*, void*);
 
-K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 64, 2);
+static struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
+
+#ifdef CONFIG_PM
+#define USB_DETECT_DEBOUNCE K_MSEC(10)
+
+static struct gpio_dt_spec usb_detect = GPIO_DT_SPEC_GET(DT_NODELABEL(usb_wakeup), gpios);
+static struct gpio_callback usb_detect_cb_data;
+static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
+void usb_debounce_power_set(struct k_work *work);
+void usb_debounce_timer_handler(struct k_timer *timer);
+
+K_TIMER_DEFINE(usb_debounce_timer, usb_debounce_timer_handler, NULL);
+K_WORK_DEFINE(usb_debounce_work, usb_debounce_power_set);
+#endif /* CONFIG_PM */
 
 
-K_THREAD_STACK_DEFINE(bme_stack_area, BME_STACK_SIZE);
-K_THREAD_STACK_DEFINE(zmod_stack_area, ZMOD_STACK_SIZE);
-K_THREAD_STACK_DEFINE(pm_stack_area, PM_STACK_SIZE);
-K_THREAD_STACK_DEFINE(lora_stack_area, LORA_STACK_SIZE);
-K_THREAD_STACK_DEFINE(usb_stack_area, USB_STACK_SIZE);
+K_THREAD_DEFINE(sensor_tid, SENSOR_THREAD_STACK_SIZE,
+                sensor_thread, NULL, NULL, NULL,
+                SENSOR_PRIORITY, 0, 1000);
+
+K_THREAD_DEFINE(pm_sensor_tid, PM_SENSOR_THREAD_STACK_SIZE,
+                pm_sensor_thread, NULL, NULL, NULL,
+                PM_SENSOR_PRIORITY, 0, 1000);
+
+#ifdef CONFIG_LORAWAN
+K_THREAD_DEFINE(lora_tid, LORA_STACK_SIZE,
+                lora_entry_point, NULL, NULL, NULL,
+                LORA_PRIORITY, 0, 1000);
+#endif /* CONFIG_LORAWAN */
 
 
-struct k_thread bme_thread_data;
-struct k_thread zmod_thread_data;
-struct k_thread pm_thread_data;
-struct k_thread lora_thread_data;
-struct k_thread usb_thread_data;
+int init_status_led() {
+  int ret = gpio_pin_configure_dt(&led, GPIO_DISCONNECTED);
+  if (ret) {
+    LOG_ERR("Error %d: failed to configure pin %d\n", ret, led.pin);
+    return -EINVAL;
+  }
+  return 0;
+}
+
+#ifdef CONFIG_PM
+static int handler_count = 0;
+
+void usb_debounce_timer_handler(struct k_timer *timer) {
+  k_work_submit(&usb_debounce_work);
+}
+
+void usb_debounce_power_set(struct k_work *work) {
+  if (gpio_pin_get_dt(&usb_detect)) {
+    disable_sleep();
+    printk("usb inserted %d\n", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
+  }
+  else {
+    enable_sleep();
+    printk("usb removed %d\n", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
+  }
+}
+
+void usb_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
+  handler_count++;
+  k_timer_start(&usb_debounce_timer, USB_DETECT_DEBOUNCE, K_NO_WAIT);
+  printk("handler_count=%d\n", handler_count);
+}
+
+int init_usb_detect() {
+  int ret;
+
+  if (!pm_device_wakeup_enable((struct device *) usb_detect.port, true)) {
+    LOG_ERR("Error: failed to enabled wakeup on %s pin %d\n",
+        usb_detect.port->name,
+        usb_detect.pin);
+    return -EINVAL;
+  }
+
+  ret = gpio_pin_configure_dt(&usb_detect, GPIO_INPUT);
+  if (ret) {
+    LOG_ERR("Error %d: failed to configure pin %d\n", ret, usb_detect.pin);
+    return -EINVAL;
+  }
+
+  ret = gpio_pin_interrupt_configure_dt(&usb_detect, GPIO_INT_EDGE_BOTH);
+  if (ret) {
+    LOG_ERR("Error %d: failed to configure interupt on %s pin %d\n", 
+        ret, 
+        usb_detect.port->name, 
+        usb_detect.pin);
+    return -EINVAL;
+  }
+
+  gpio_init_callback(&usb_detect_cb_data, usb_handler, BIT(usb_detect.pin));
+  gpio_add_callback(usb_detect.port, &usb_detect_cb_data);
+
+  gpio_port_value_t portb;
+  if (gpio_port_get_raw(usb_detect.port, &portb)) {
+    printk("unable to read portb\n");
+    return -EINVAL;
+  }
+  LOG_INF("port=%x\n", portb);
+#ifdef CONFIG_PM
+  LOG_INF("usb_detect pin=%d\n", gpio_pin_get_dt(&usb_detect));
+  if (gpio_pin_get_dt(&usb_detect)) {
+    LOG_INF("disabling sleep %d\n", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
+    disable_sleep();
+  }
+  else {
+    printk("keeping sleep on\n");
+  }
+#endif /* CONFIG_PM */
+
+  return 0;
+}
+
+#endif /* CONFIG_PM */
+
+
+int pre_kernel2_init(const struct device *dev) {
+  ARG_UNUSED(dev);
+#ifdef CONFIG_PM
+  disable_sleep();
+#endif /* CONFIG_PM */
+
+  return 0;
+}
+
+SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
+
+#define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain);
+
 
 void main() 
 {
-  k_tid_t bme_tid, zmod_tid, pm_tid, lora_tid, usb_tid;
+  enable_sleep();
+  LOG_INF("Entering main thread. Sleep enabled? %d", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
 
-  /* Initialize Threads */
-  bme_tid = k_thread_create(&bme_thread_data, bme_stack_area,
-                K_THREAD_STACK_SIZEOF(bme_stack_area),
-                bme_entry_point,
-                &lora_msgq, NULL, NULL,
-                BME_PRIORITY, 0, K_NO_WAIT);
-  k_thread_name_set(bme_tid, "bme");
+  // (ノಠ益ಠ)ノ彡┻━┻
+  // It causes the I2C bus to lose arbitration??????????
+  if (init_status_led()) {
+    LOG_ERR("Unable to initialize status led");
+    return;
+  }
+#ifdef CONFIG_PM
+  if (init_usb_detect()) {
+    LOG_ERR("Unable to initialize usb detect");
+    return;
+  }
+#endif /* CONFIG_PM */
 
-  zmod_tid = k_thread_create(&zmod_thread_data, zmod_stack_area,
-                K_THREAD_STACK_SIZEOF(zmod_stack_area),
-                zmod_entry_point,
-                &lora_msgq, NULL, NULL,
-                ZMOD_PRIORITY, 0, K_NO_WAIT);
-  k_thread_name_set(zmod_tid, "zmod");
 
-  pm_tid = k_thread_create(&pm_thread_data, pm_stack_area,
-                K_THREAD_STACK_SIZEOF(pm_stack_area),
-                sps_entry_point,
-                &lora_msgq, NULL, NULL,
-                PM_PRIORITY, 0, K_NO_WAIT);
-  k_thread_name_set(pm_tid, "sps");
-
-  lora_tid = k_thread_create(&lora_thread_data, lora_stack_area,
-                K_THREAD_STACK_SIZEOF(lora_stack_area),
-                lora_entry_point,
-                &lora_msgq, NULL, NULL,
-                LORA_PRIORITY, 0, K_NO_WAIT);
+#ifdef CONFIG_THREAD_MONITOR
+#ifdef CONFIG_LORAWAN
   k_thread_name_set(lora_tid, "lora");
-
-  #ifdef ENABLE_BME
-  k_thread_start(&bme_thread_data);
-  #endif
-
-  #ifdef ENABLE_ZMOD
-  k_thread_start(&zmod_thread_data);
-  #endif
-
-  #ifdef ENABLE_PM
-  k_thread_start(&pm_thread_data);
-  #endif
-
-  #ifdef ENABLE_LORAWAN
-  k_thread_start(&lora_thread_data);
-  #endif
+#endif /* CONFIG_LORAWAN */
+#endif /* CONFIG_THREAD_MONITOR */
 }

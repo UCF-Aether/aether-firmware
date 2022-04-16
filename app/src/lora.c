@@ -7,21 +7,23 @@
 #include <zephyr.h>
 #include <cayenne.h>
 #include "lora.h"
+#include "lora.h"
 
 LOG_MODULE_DECLARE(aether);
 
-// TODO: change max packet size with lorawan_register_dr_changed_callback 
+// Biggest reading is with float => 2 + 4 = 6 => 8 byte alignment
+K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 64, 8);
+
 
 #define LORAWAN_RETRY_DELAY 5000
 #define LORAWAN_DELAY       3000
 #define MSGQ_GET_TIMEOUT    K_USEC(50)
 #define GROUPING_TIMEOUT    K_MSEC(1)
 
-K_TIMER_DEFINE(grouping_timer, NULL, NULL);
-
 uint8_t dr_max_size = 11;   
 
 struct lorawan_join_config join_cfg;
+
 
 
 #ifdef USE_ABP
@@ -65,8 +67,8 @@ void set_join_cfg(struct lorawan_join_config *config) {
 
 int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
   int ret;
-  LOG_INF("sending %d bytes", buffer_len);
-  LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
+  //LOG_INF("sending %d bytes", buffer_len);
+  //LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
 
   do {
     ret = lorawan_send(2, buffer, buffer_len, LORAWAN_MSG_CONFIRMED);
@@ -88,8 +90,8 @@ int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
 #else
 
 int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
-  LOG_INF("sending %d bytes", buffer_len);
-  LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
+  //LOG_INF("sending %d bytes", buffer_len);
+  //LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
   return 0;
 }
 
@@ -125,42 +127,8 @@ struct lorawan_downlink_cb downlink_cb = {
 };
 
 
-// TODO: unit test
-int create_packet(uint8_t *buffer, struct k_msgq *msgq, uint8_t max_packet_len) {
-  uint8_t num_bytes = 0;
-  struct reading reading;
-
-  while (num_bytes < max_packet_len && k_msgq_num_used_get(msgq) > 0) {
-    k_msgq_peek(msgq, (void *) &reading);
-
-    if (num_bytes + get_reading_size(&reading) <= max_packet_len) {
-      k_msgq_get(msgq, (void *) &reading, K_NO_WAIT);
-      LOG_INF("Got reading: chan=%d, type=%d, val.u16=%d, val.f=%f",
-        reading.chan,
-        reading.type,
-        reading.val.u16,
-        reading.val.f
-      );
-
-      num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
-    }
-    else {
-      break;
-    }
-  }
-
-  // Zero fill until 7 bytes - the min
-  // for (; num_bytes < 7; num_bytes++) {
-  //   buffer[num_bytes] = 0;
-  // }
-
-  return num_bytes;
-}
-
-
-void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
+void lora_entry_point(void *arg1, void *arg2, void *arg3) {
   const struct device *lora_dev;
-  struct k_msgq *msgq = _msgq;
   // struct lorawan_join_config join_cfg;
   int ret = 0;
 
@@ -206,23 +174,41 @@ void lora_entry_point(void *_msgq, void *arg2, void *arg3) {
     return;
   }
 
-  // Send some dummy packets
-
   // Main loop
-  struct reading reading;
-  int reading_size;
+  struct reading reading;  //unused?
+  int reading_size; //unused?
   uint8_t num_bytes = 0;
-  uint8_t msgs_left = 0;
+  uint8_t msgs_left = 0; // unused?
   while (1) {
-    // For some reason, using K_FOREVER causes a hang, when the thread should be preemptable
-    while (k_msgq_num_used_get(msgq) == 0) {
+    num_bytes = 0;
+
+    // Send more until the queue is empty, else wait
+    if (k_msgq_num_used_get(&lora_msgq) == 0) {
+      ret = k_msgq_get(&lora_msgq, (void *) &reading, K_FOREVER);
+      num_bytes += cayenne_packetize(buffer, &reading);
+
+      // Sleep to try to get readings that might've been sent around the same time to group them
+      // together.
       k_msleep(1000);
     }
 
-    num_bytes = create_packet(buffer, msgq, dr_max_size);
+    while (num_bytes < dr_max_size && k_msgq_num_used_get(&lora_msgq) > 0) {
+      k_msgq_peek(&lora_msgq, (void *) &reading);
+
+      if (num_bytes + get_reading_size(&reading) <= dr_max_size) {
+        k_msgq_get(&lora_msgq, (void *) &reading, K_NO_WAIT);
+        num_bytes += cayenne_packetize(buffer + num_bytes, &reading);
+      }
+      else {
+        break;
+      }
+    }
 
     send(lora_dev, buffer, num_bytes);
-
-    LOG_INF("msgq used=%d", k_msgq_num_used_get(msgq));
+    LOG_INF("msgq used=%d", k_msgq_num_used_get(&lora_msgq));
   }
+}
+
+int lorawan_schedule(struct reading *reading) {
+  return k_msgq_put(&lora_msgq, (void *) reading, K_NO_WAIT); 
 }

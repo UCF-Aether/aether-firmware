@@ -1,0 +1,46 @@
+
+usb_wakeup: &user_button {};
+
+/ {
+  pwr_5v_domain: pwr_5v_domain {
+    status = "okay";
+    compatible = "power-domain-gpio";
+    label = "5v_power_domain";
+    enable-gpios = <&gpiob 5 GPIO_ACTIVE_LOW>;
+  };
+};
+
+&i2c2 {
+  clock-frequency = < 0x186a0 >;
+  bme680: bme680@76 {
+    compatible = "bosch,bme680";
+    reg = <0x76>;
+    label = "BME680";
+    status="okay";
+  };
+
+  zmod4510: zmod4510@33 {
+    compatible = "renesas,zmod4510";
+    reg = <0x33>;
+    label = "ZMOD4510";
+    status="okay";
+  };
+
+  sps30: sps30@69 {
+    compatible = "sensirion,sps30";
+    reg = <0x69>;
+    label = "SPS30";
+    status="okay";
+    power-domain = <&pwr_5v_domain>;
+  };
+};
+
+&cpu0 {
+	cpu-power-states = <&stop0>;
+};
+
+&gpioa {
+  wakeup-source;
+};
+
+// vim: ft=dts

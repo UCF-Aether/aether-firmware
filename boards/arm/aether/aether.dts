@@ -29,18 +29,25 @@
 
 	aliases {
 		lora0 = &lora;
+    led0 = &status0;
 	};
 
-  usb_wakeup: usb_wakeup {
+  gpio_keys {
     compatible = "gpio-keys";
-    gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
-    label = "Wakeup from USB";
+    usb_wakeup: usb_wakeup {
+      gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+      label = "Wakeup from USB";
+    };
+	sps_power_pins: sps_power_pins {
+		gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
+		label = "Turn on SPS";
+	};
   };
 
   pwr_5v_domain: pwr_5v_domain {
     status = "okay";
-    compatible = "power-domain-gpios";
-    label = "5v_power_domain";
+    compatible = "power-domain-gpio";
+    label = "pwr_5v_domain";
     enable-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
   };
 
@@ -88,8 +95,13 @@ sensors: &i2c2 {
   };
 };
 
+&gpiob {
+  wakeup-source;
+};
+
 &cpu0 {
-	cpu-power-states = <&stop0 &stop1 &stop2>;
+	/* cpu-power-states = <&stop0 &stop1 &stop2>; */
+	cpu-power-states = <&stop1>;
 };
 
 &lptim1 {
