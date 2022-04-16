@@ -12,7 +12,7 @@
 #include "lora.h"
 #include <drivers/sensor/sps30.h>
 
-LOG_MODULE_REGISTER(pm_sensor_thread, CONFIG_SENSOR_LOG_LEVEL);
+LOG_MODULE_REGISTER(pm_sensor_thread, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define SPS_SLEEP 15000
 #define NUM_READINGS 5
