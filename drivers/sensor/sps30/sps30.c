@@ -19,8 +19,7 @@ LOG_MODULE_REGISTER(sps30, CONFIG_SENSOR_LOG_LEVEL);
 
 static struct gpio_dt_spec sps_gpio_power = GPIO_DT_SPEC_GET(DT_NODELABEL(sps_power_pins), gpios);
 
-
-static int sps30_init(const struct device *dev) {
+int sps30_init(const struct device *dev) {
   const int num_retries = 10;
   int retries_left;
   int ret;
@@ -41,12 +40,12 @@ static int sps30_init(const struct device *dev) {
     return -EINVAL;
   }
 
-      /* Enable SPS30 GPIO pin */
-    ret = gpio_pin_set_dt(&sps_gpio_power, 1);
-    if (ret) {
-      printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
-      return -EINVAL;
-    }
+  /* Enable SPS30 GPIO pin */
+  ret = gpio_pin_set_dt(&sps_gpio_power, 1);
+  if (ret) {
+    printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
+    return -EINVAL;
+  }
     
   for (retries_left = num_retries - 1; retries_left >= 0; retries_left--) {
     if (sps30_probe() == 0) {
@@ -62,8 +61,6 @@ static int sps30_init(const struct device *dev) {
     k_msleep(100);
   }
 
-  LOG_ERR("Failed to wake-up the device");
-  pm_device_runtime_put(dev);
   return -EINVAL;
 }
 
@@ -73,18 +70,19 @@ static int sps30_sample_fetch(const struct device *dev, enum sensor_channel chan
   int ret;
 
     /* Configure SPS30 GPIO pin */
-  ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
-  if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
-    return -EINVAL;
-  }
+  // ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
+  // if (ret) {
+  //   printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
+  //   return -EINVAL;
+  // }
 
-      /* Enable SPS30 GPIO pin */
-    ret = gpio_pin_set_dt(&sps_gpio_power, 1);
-    if (ret) {
-      printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
-      return -EINVAL;
-    }
+  /* Enable SPS30 GPIO pin */
+  // ret = gpio_pin_set_dt(&sps_gpio_power, 1);
+  // if (ret) {
+  //   printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
+  //   return -EINVAL;
+  // }
+
   ret = sps30_read_measurement(&m);
   if (ret < 0) {
     LOG_ERR("Error reading measurement: %d", ret);

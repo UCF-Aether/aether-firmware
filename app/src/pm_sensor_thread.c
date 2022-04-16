@@ -10,6 +10,7 @@
 #include <drivers/gpio.h>
 #include "pm.h"
 #include "lora.h"
+#include <drivers/sensor/sps30.h>
 
 LOG_MODULE_REGISTER(sps30_loop, CONFIG_SENSOR_LOG_LEVEL);
 
@@ -50,40 +51,46 @@ void pm_sensor_thread(void *arg1, void *arg2, void *arg3) {
   while (1) {
     disable_sleep();
 
-    // pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
+  /* Enable SPS30 GPIO pin */
+    ret = gpio_pin_set_dt(&sps_gpio_power, 1);
+    if (ret) {
+      printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
+    }
+    else {
+      sps30_init(dev_sps);
 
-    /* Allow time for device to warm up */
-    k_msleep(30000);
+      /* Allow time for device to warm up */
+      k_msleep(30000);
 
-    pm2_5_sum = 0, pm10_sum = 0;
+      pm2_5_sum = 0, pm10_sum = 0;
 
-    for (int i = 0; i < NUM_READINGS; i++) {
-      sensor_sample_fetch(dev_sps);
-      sensor_channel_get(dev_sps, SENSOR_CHAN_PM_2_5, &pm2p5);
-      sensor_channel_get(dev_sps, SENSOR_CHAN_PM_10, &pm10p0);
+      for (int i = 0; i < NUM_READINGS; i++) {
+        sensor_sample_fetch(dev_sps);
+        sensor_channel_get(dev_sps, SENSOR_CHAN_PM_2_5, &pm2p5);
+        sensor_channel_get(dev_sps, SENSOR_CHAN_PM_10, &pm10p0);
 
-      pm2_5_sum += (float) sensor_value_to_double(&pm2p5);
-      pm10_sum += (float) sensor_value_to_double(&pm10p0);
+        pm2_5_sum += (float) sensor_value_to_double(&pm2p5);
+        pm10_sum += (float) sensor_value_to_double(&pm10p0);
 
-      k_msleep(10000);
+        k_msleep(10000);
+      }
+
+      reading.chan = CAYENNE_CHANNEL_SPS;
+
+      reading.type = CAYENNE_TYPE_PM_2_5;
+      reading.val.f = pm2_5_sum / NUM_READINGS;
+      LOG_DBG("PM 2p5=%f", reading.val.f);
+      LOG_INF("PM 2.5 = %.03f um", reading.val.f);
+      lorawan_schedule(&reading);
+
+      reading.type = CAYENNE_TYPE_PM_10;
+      reading.val.f = pm10_sum / NUM_READINGS;
+      LOG_DBG("PM 10p0=%f", reading.val.f);
+      LOG_INF("PM 10 = %.03f um", reading.val.f);
+      lorawan_schedule(&reading);
     }
 
-    reading.chan = CAYENNE_CHANNEL_SPS;
-
-    reading.type = CAYENNE_TYPE_PM_2_5;
-    reading.val.f = pm2_5_sum / NUM_READINGS;
-    LOG_DBG("PM 2p5=%f", reading.val.f);
-    LOG_INF("PM 2.5 = %.03f um", reading.val.f);
-    lorawan_schedule(&reading);
-
-    reading.type = CAYENNE_TYPE_PM_10;
-    reading.val.f = pm10_sum / NUM_READINGS;
-    LOG_DBG("PM 10p0=%f", reading.val.f);
-    LOG_INF("PM 10 = %.03f um", reading.val.f);
-    lorawan_schedule(&reading);
-
-    // pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_SUSPEND);
-
+    gpio_pin_set_dt(&sps_gpio_power, 0);
     enable_sleep();
     k_msleep(SPS_SLEEP);
   }
