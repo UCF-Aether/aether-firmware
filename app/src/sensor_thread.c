@@ -101,8 +101,8 @@ void sensor_thread(void *arg1, void *arg2, void *arg3) {
         ret = sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_O3, &o3_ppb_sv);
         if (ret == 0) {
           rd.type = CAYENNE_TYPE_O3;
-          rd.val.f = sensor_value_to_double(&o3_ppb_sv);
-          LOG_INF("O3 (ppb) = %f", rd.val.f);
+          rd.val.f = sensor_value_to_double(&o3_ppb_sv) / 1000;
+          LOG_INF("O3 (ppm) = %f", rd.val.f);
           lorawan_schedule(&rd);
         }
         // sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_NO2, &no2_ppb_sv);
