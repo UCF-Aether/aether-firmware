@@ -13,6 +13,7 @@
 #include <kernel.h>
 #include <stdio.h>
 #include <drivers/sensor/zmod4510.h>
+#include <sys/errno_private.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(zmod4510, CONFIG_SENSOR_LOG_LEVEL);
@@ -143,19 +144,6 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
 
 	__ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL);
 
-#ifdef CONFIG_ZMOD4510_HUMIDITY
-  struct sensor_value humidity, temp;
-  sensor_sample_fetch(humidity_sensor);
-  sensor_channel_get(humidity_sensor, SENSOR_CHAN_HUMIDITY, &humidity);
-  //LOG_DBG("humidity=%f%%", sensor_value_to_double(&humidity));
-#endif /* CONFIG_ZMOD4510_HUMIDITY */
-
-#ifdef CONFIG_ZMOD4510_TEMPERATURE
-  sensor_sample_fetch(temp_sensor);
-  sensor_channel_get(temp_sensor, SENSOR_CHAN_AMBIENT_TEMP, &temp);
-  //LOG_DBG("temperature=%f C", sensor_value_to_double(&temp));
-#endif /* CONFIG_ZMOD4510_TEMPERATURE */
-
  // LOG_DBG("Starting sample fetch");
   ret = zmod4xxx_start_measurement(zmod_dev);
   if (ret) {
@@ -163,8 +151,6 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
     return -EINVAL;
   }
 
-  //LOG_DBG("Waiting for reading");
-	// TODO: interrupt based reading
 	do {
     ret = zmod4xxx_read_status(zmod_dev, &zmod4510_status);
 		if (ret) {
@@ -195,27 +181,17 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
     LOG_ERR("Failed rading ADC results: %d", ret);
     return -EINVAL;
   }
-  data->adc_result;
-  LOG_HEXDUMP_DBG(data->adc_result, ZMOD4510_ADC_DATA_LEN, "adc results");
+  // data->adc_result;
+  // LOG_HEXDUMP_DBG(data->adc_result, ZMOD4510_ADC_DATA_LEN, "adc results");
 
-#ifdef CONFIG_ZMOD4510_HUMIDITY
-  data->humidity_pct = sensor_value_to_double(&humidity);
-#else
-	data->humidity_pct = 50.0; // 50% RH
-#endif /* CONFIG_ZMOD4510_HUMIDITY */
+	return 0;
+}
 
-#ifdef CONFIG_ZMOD4510_TEMPERATURE
-  data->temperature_degc = sensor_value_to_double(&temp);
-#else
-	data->temperature_degc = 20.0; // 20 degC
-#endif /* CONFIG_ZMOD4510_TEMPERATURE */
+int calc_oaq(const struct device *dev, float humidity_pct, float temperature_degc) {
+  int ret;
 
-  float rmox;
-  ret = zmod4xxx_calc_rmox(zmod_dev, data->adc_result, &rmox);
-  if (ret) {
-    LOG_ERR("Unable to calculate rmox: %d", ret);
-  }
- // LOG_DBG("rmox: %f", rmox);
+	struct zmod4510_data *data = (struct zmod4510_data *) dev->data;
+	zmod4xxx_dev_t *zmod_dev = &data->zmod_dev;
 
   //LOG_DBG("Calculating oaq");
 	// get sensor results with API
@@ -229,12 +205,12 @@ static int zmod4510_sample_fetch(const struct device *dev, enum sensor_channel c
 
   if (ret == OAQ_2ND_GEN_STABILIZATION) {
     //LOG_DBG("Warming up - %d readings until stabilization", data->algo_handle.stabilization_sample);
+    return -EINPROGRESS;
   }
   else {
     //LOG_DBG("Stabilized");
+    return 0;
   }
-
-	return 0;
 }
 
 static const struct sensor_driver_api zmod4510_api_funcs = {

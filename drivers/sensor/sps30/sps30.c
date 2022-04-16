@@ -175,6 +175,6 @@ static const struct sps30_config sps30_config = {
   .bus = I2C_DT_SPEC_INST_GET(0),
 };
 
-PM_DEVICE_DT_INST_DEFINE(0, sps30_pm_action);
-DEVICE_DT_INST_DEFINE(0, sps30_init, PM_DEVICE_DT_INST_GET(0), &sps30_data, &sps30_config, POST_KERNEL,
+// PM_DEVICE_DT_INST_DEFINE(0, sps30_pm_action);
+DEVICE_DT_INST_DEFINE(0, sps30_init, NULL, &sps30_data, &sps30_config, POST_KERNEL,
     CONFIG_SENSOR_INIT_PRIORITY, &sps30_api_funcs);

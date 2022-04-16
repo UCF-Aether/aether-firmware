@@ -5,10 +5,12 @@ cmake_minimum_required(VERSION 3.20.0)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(aether)
 
-FILE(GLOB app_sources src/*.c)
-FILE(GLOB sensor_entry_sources src/sensor/*.c)
-FILE(GLOB io_entry_sources src/io/*.c)
-target_sources(app PRIVATE ${app_sources} ${sensor_entry_sources} ${io_entry_sources})
+FILE(GLOB app_sources src/main.c src/pm.c)
+FILE(GLOB io_sources src/io/*.c)
+target_sources(app PRIVATE ${app_sources})
+target_sources_ifdef(CONFIG_SENSOR app PRIVATE src/pm_sensor_thread.c src/sensor_thread.c)
+target_sources_ifdef(CONFIG_SHELL app PRIVATE src/usb.c)
+target_sources_ifdef(CONFIG_LORAWAN app PRIVATE src/lora.c)
 
 add_definitions(
   -DENABLE_ZMOD, 

@@ -35,6 +35,12 @@ LOG_MODULE_REGISTER(aether);
 #define LORA_STACK_SIZE   2048
 #define USB_STACK_SIZE    1024
 
+#define SENSOR_THREAD_STACK_SIZE 2048
+#define PM_SENSOR_THREAD_STACK_SIZE 2048
+
+#define SENSOR_PRIORITY 5
+#define PM_SENSOR_PRIORITY 5
+
 #define BME_PRIORITY    5
 #define ZMOD_PRIORITY   5
 #define SPS_PRIORITY     5
@@ -42,10 +48,13 @@ LOG_MODULE_REGISTER(aether);
 #define USB_PRIORITY    5
 
 
-extern void zmod_entry_point(void *_msgq, void *arg2, void *arg3);
-extern void sps_entry_point(void *_msgq, void *arg2, void *arg3);
-extern void bme_entry_point(void *_msgq, void *arg2, void *arg3);
+// extern void zmod_entry_point(void *_msgq, void *arg2, void *arg3);
+// extern void pm_sensor_thread(void *_msgq, void *arg2, void *arg3);
+// extern void bme_entry_point(void *_msgq, void *arg2, void *arg3);
 extern void lora_entry_point(void *_msgq, void *arg2, void *arg3);
+
+extern void pm_sensor_thread(void*, void*, void*);
+extern void sensor_thread(void*, void*, void*);
 
 static struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 
@@ -62,30 +71,18 @@ K_TIMER_DEFINE(usb_debounce_timer, usb_debounce_timer_handler, NULL);
 K_WORK_DEFINE(usb_debounce_work, usb_debounce_power_set);
 #endif /* CONFIG_PM */
 
-K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 64, 2);
 
+K_THREAD_DEFINE(sensor_tid, SENSOR_THREAD_STACK_SIZE,
+                sensor_thread, NULL, NULL, NULL,
+                SENSOR_PRIORITY, 0, 1000);
 
-#ifdef CONFIG_BME680
-K_THREAD_DEFINE(bme_tid, BME_STACK_SIZE,
-                bme_entry_point, (void *) &lora_msgq, NULL, NULL,
-                BME_PRIORITY, 0, 1000);
-#endif /* CONFIG_BME680 */
-
-#ifdef CONFIG_ZMOD4510
-K_THREAD_DEFINE(zmod_tid, ZMOD_STACK_SIZE,
-                zmod_entry_point, (void *) &lora_msgq, NULL, NULL,
-                ZMOD_PRIORITY, 0, 1000);
-#endif /* CONFIG_ZMOD4510 */
-
-#ifdef CONFIG_SPS30
-K_THREAD_DEFINE(sps_tid, SPS_STACK_SIZE,
-                sps_entry_point, (void *) &lora_msgq, NULL, NULL,
-                SPS_PRIORITY, 0, 1000);
-#endif /* CONFIG_SPS30 */
+K_THREAD_DEFINE(pm_sensor_tid, PM_SENSOR_THREAD_STACK_SIZE,
+                pm_sensor_thread, NULL, NULL, NULL,
+                PM_SENSOR_PRIORITY, 0, 1000);
 
 #ifdef CONFIG_LORAWAN
 K_THREAD_DEFINE(lora_tid, LORA_STACK_SIZE,
-                lora_entry_point, (void *) &lora_msgq, NULL, NULL,
+                lora_entry_point, NULL, NULL, NULL,
                 LORA_PRIORITY, 0, 1000);
 #endif /* CONFIG_LORAWAN */
 
@@ -109,11 +106,11 @@ void usb_debounce_timer_handler(struct k_timer *timer) {
 void usb_debounce_power_set(struct k_work *work) {
   if (gpio_pin_get_dt(&usb_detect)) {
     disable_sleep();
-    printk("usb inserted\n");
+    printk("usb inserted %d\n", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
   }
   else {
-    printk("usb removed\n");
     enable_sleep();
+    printk("usb removed %d\n", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
   }
 }
 
@@ -139,7 +136,7 @@ int init_usb_detect() {
     return -EINVAL;
   }
 
-  ret = gpio_pin_interrupt_configure_dt(&usb_detect, GPIO_INT_EDGE_BOTH | GPIO_INT_DEBOUNCE);
+  ret = gpio_pin_interrupt_configure_dt(&usb_detect, GPIO_INT_EDGE_BOTH);
   if (ret) {
     printk("Error %d: failed to configure interupt on %s pin %d\n", 
         ret, 
@@ -190,7 +187,7 @@ SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
 
 void main() 
 {
-  printk("pls\n");
+  LOG_INF("Entering main thread");
   enable_sleep();
 
   // (ノಠ益ಠ)ノ彡┻━┻
@@ -224,5 +221,4 @@ void main()
   k_thread_name_set(lora_tid, "lora");
 #endif /* CONFIG_LORAWAN */
 #endif /* CONFIG_THREAD_MONITOR */
-
 }

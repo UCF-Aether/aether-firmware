@@ -2,6 +2,7 @@
 #ifndef ZEPHYR_INCLUDE_DRIVERS_SENSOR_ZMOD4510_H_
 #define ZEPHYR_INCLUDE_DRIVERS_SENSOR_ZMOD4510_H_
 
+#include <device.h>
 #include <drivers/sensor.h>
 
 enum zmod4510_sensor_channel {
@@ -12,6 +13,10 @@ enum zmod4510_sensor_channel {
   ZMOD4510_SENSOR_CHAN_AQI,
   /** O3 levels in parts per billion (ppb) */
   ZMOD4510_SENSOR_CHAN_O3, 
+  /** NO2 levels in parts per billion (ppb) */
+  ZMOD4510_SENSOR_CHAN_NO2, 
 };
+
+int calc_oaq(const struct device *dev, float humidity_pct, float temperature_degc);
 
 #endif /* ZEPHYR_INCLUDE_DRIVERS_SENSOR_ZMOD4510_H_ */

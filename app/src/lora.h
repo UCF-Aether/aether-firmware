@@ -1,6 +1,10 @@
 
 #ifndef __LORAWAN_ENTRY_H__
 #define __LORAWAN_ENTRY_H__
+
+#include <kernel.h>
+#include <cayenne.h>
+
 /******************** LoRaWAN Configuration Parameters ************************/
 /* Enable or disable LoRaWAN for testing purposes */
 #define ENABLE_LORAWAN
@@ -42,5 +46,6 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 					  0x91, 0x92}
 #endif
 
+int lorawan_schedule(struct reading *reading);
 
 #endif /* __LORAWAN_ENTRY_H__ */

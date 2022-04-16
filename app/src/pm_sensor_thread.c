@@ -8,21 +8,22 @@
 #include <pm/device.h>
 #include <pm/device_runtime.h>
 #include <drivers/gpio.h>
+#include "pm.h"
+#include "lora.h"
 
 LOG_MODULE_REGISTER(sps30_loop, CONFIG_SENSOR_LOG_LEVEL);
 
 #define SPS_SLEEP 15000
 #define NUM_READINGS 5
 
-#define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain)
+// #define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain)
 
-static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
+// static const struct device *pwr_5v_domain = DEVICE_DT_GET(DT_NODELABEL(pwr_5v_domain));
 const struct device *dev_sps = DEVICE_DT_GET(DT_NODELABEL(sps30));
 
-void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
+void pm_sensor_thread(void *arg1, void *arg2, void *arg3) {
   struct sensor_value pm1p0, pm2p5, pm10p0;
   struct reading reading;
-  struct k_msgq *msgq = (struct k_msgq *) _msgq;
   float pm2_5_sum = 0, pm10_sum = 0;
   enum pm_device_state state;
   int ret;
@@ -47,11 +48,11 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
   }
 
   while (1) {
-    //disable_sleep();
+    disable_sleep();
 
-    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
+    // pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_RESUME);
 
-    /* Allow time for device to turn on */
+    /* Allow time for device to warm up */
     k_msleep(30000);
 
     pm2_5_sum = 0, pm10_sum = 0;
@@ -73,17 +74,17 @@ void sps_entry_point(void *_msgq, void *arg2, void *arg3) {
     reading.val.f = pm2_5_sum / NUM_READINGS;
     LOG_DBG("PM 2p5=%f", reading.val.f);
     LOG_INF("PM 2.5 = %.03f um", reading.val.f);
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
+    lorawan_schedule(&reading);
 
     reading.type = CAYENNE_TYPE_PM_10;
     reading.val.f = pm10_sum / NUM_READINGS;
     LOG_DBG("PM 10p0=%f", reading.val.f);
     LOG_INF("PM 10 = %.03f um", reading.val.f);
-    k_msgq_put(msgq, &reading, K_NO_WAIT);
+    lorawan_schedule(&reading);
 
-    pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_SUSPEND);
+    // pm_device_action_run(pwr_5v_domain, PM_DEVICE_ACTION_SUSPEND);
 
-    //enable_sleep();
+    enable_sleep();
     k_msleep(SPS_SLEEP);
   }
 }
