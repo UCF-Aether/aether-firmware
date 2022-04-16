@@ -90,7 +90,7 @@ K_THREAD_DEFINE(lora_tid, LORA_STACK_SIZE,
 int init_status_led() {
   int ret = gpio_pin_configure_dt(&led, GPIO_DISCONNECTED);
   if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, led.pin);
+    LOG_ERR("Error %d: failed to configure pin %d\n", ret, led.pin);
     return -EINVAL;
   }
   return 0;
@@ -124,7 +124,7 @@ int init_usb_detect() {
   int ret;
 
   if (!pm_device_wakeup_enable((struct device *) usb_detect.port, true)) {
-    printk("Error: failed to enabled wakeup on %s pin %d\n",
+    LOG_ERR("Error: failed to enabled wakeup on %s pin %d\n",
         usb_detect.port->name,
         usb_detect.pin);
     return -EINVAL;
@@ -132,13 +132,13 @@ int init_usb_detect() {
 
   ret = gpio_pin_configure_dt(&usb_detect, GPIO_INPUT);
   if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, usb_detect.pin);
+    LOG_ERR("Error %d: failed to configure pin %d\n", ret, usb_detect.pin);
     return -EINVAL;
   }
 
   ret = gpio_pin_interrupt_configure_dt(&usb_detect, GPIO_INT_EDGE_BOTH);
   if (ret) {
-    printk("Error %d: failed to configure interupt on %s pin %d\n", 
+    LOG_ERR("Error %d: failed to configure interupt on %s pin %d\n", 
         ret, 
         usb_detect.port->name, 
         usb_detect.pin);
@@ -153,11 +153,11 @@ int init_usb_detect() {
     printk("unable to read portb\n");
     return -EINVAL;
   }
-  printk("port=%x\n", portb);
+  LOG_INF("port=%x\n", portb);
 #ifdef CONFIG_PM
-  printk("usb_detect pin=%d\n", gpio_pin_get_dt(&usb_detect));
+  LOG_INF("usb_detect pin=%d\n", gpio_pin_get_dt(&usb_detect));
   if (gpio_pin_get_dt(&usb_detect)) {
-    printk("disabling sleep\n");
+    LOG_INF("disabling sleep %d\n", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
     disable_sleep();
   }
   else {
@@ -187,8 +187,8 @@ SYS_INIT(pre_kernel2_init, PRE_KERNEL_2, 0);
 
 void main() 
 {
-  LOG_INF("Entering main thread");
   enable_sleep();
+  LOG_INF("Entering main thread. Sleep enabled? %d", pm_constraint_get(PM_STATE_SUSPEND_TO_IDLE));
 
   // (ノಠ益ಠ)ノ彡┻━┻
   // It causes the I2C bus to lose arbitration??????????
@@ -205,18 +205,6 @@ void main()
 
 
 #ifdef CONFIG_THREAD_MONITOR
-#ifdef CONFIG_BME680
-  k_thread_name_set(bme_tid, "bme");
-#endif /* CONFIG_BME680 */
-
-#ifdef CONFIG_ZMOD4510
-  k_thread_name_set(zmod_tid, "zmod");
-#endif /* CONFIG_ZMOD4510 */
-
-#ifdef CONFIG_SPS30
-  k_thread_name_set(sps_tid, "sps");
-#endif /* CONFIG_SPS30 */
-
 #ifdef CONFIG_LORAWAN
   k_thread_name_set(lora_tid, "lora");
 #endif /* CONFIG_LORAWAN */
