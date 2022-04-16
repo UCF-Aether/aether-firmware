@@ -101,7 +101,7 @@ sensors: &i2c2 {
 
 &cpu0 {
 	/* cpu-power-states = <&stop0 &stop1 &stop2>; */
-	cpu-power-states = <&stop2>;
+	cpu-power-states = <&stop1>;
 };
 
 &lptim1 {
