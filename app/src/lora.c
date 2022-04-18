@@ -12,10 +12,12 @@
 LOG_MODULE_DECLARE(aether);
 
 // Biggest reading is with float => 2 + 4 = 6 => 8 byte alignment
-K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 64, 8);
+K_MSGQ_DEFINE(lora_msgq, sizeof(struct reading), 24, 8);
 
 
-#define LORAWAN_RETRY_DELAY 5000
+#define LORAWAN_RETRY_DELAY 3000
+#define LORAWAN_FAIL_RETRY_DELAY 1000
+#define NUM_RETRIES 5
 #define LORAWAN_DELAY       3000
 #define MSGQ_GET_TIMEOUT    K_USEC(50)
 #define GROUPING_TIMEOUT    K_MSEC(1)
@@ -70,20 +72,22 @@ int send(const struct device *lora_dev, uint8_t *buffer, int buffer_len) {
   //LOG_INF("sending %d bytes", buffer_len);
   //LOG_HEXDUMP_INF(buffer, buffer_len, "Lora send buffer");
 
-  do {
+  for (int i = 0; i < NUM_RETRIES; i++) {
     ret = lorawan_send(2, buffer, buffer_len, LORAWAN_MSG_CONFIRMED);
-    if (ret == -EAGAIN) {
-      LOG_ERR("lorawan_send failed: %d. Continuing...\n", ret);
+    if (ret != 0) {
+      LOG_WRN("lorawan_send failed: %d. Retrying %d/%d...\n", ret, i + 1, NUM_RETRIES);
       k_msleep(LORAWAN_RETRY_DELAY);
     }
-  } while (ret == -EAGAIN);
+    else {
+      break;
+    }
+  }
 
   if (ret < 0) {
     LOG_ERR("lorawan_send failed: %d\n", ret);
     return -EINVAL;
   }
 
-  // TODO: log dbg array
   return 0;
 }
 
@@ -204,7 +208,7 @@ void lora_entry_point(void *arg1, void *arg2, void *arg3) {
       }
     }
 
-    send(lora_dev, buffer, num_bytes);
+    ret = send(lora_dev, buffer, num_bytes);
     LOG_INF("msgq used=%d", k_msgq_num_used_get(&lora_msgq));
   }
 }
