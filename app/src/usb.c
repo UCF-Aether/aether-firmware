@@ -3,6 +3,7 @@
 #include <string.h>
 #include <shell/shell.h>
 #include <lorawan/lorawan.h>
+#include "pm.h"
 
 /* Parameters lengths in bytes */
 #define OTAA_APP_EUI_LEN  8
@@ -22,6 +23,11 @@
 #define ABP_APP_EUI   6
 #define ABP_APP_SKEY  7
 #define ABP_NWK_SKEY  8
+
+// USB disables sleep (+1 ref count), threads disable sleep (+1 each)
+// Make sure the USB +1 ref count is the only one negated (-1)
+// It's assumed that if you're running this that USB is plugged in (so +1 to ref count)
+static bool sleep_disabled = true;
 
 extern struct lorawan_join_config join_cfg;
 
@@ -224,6 +230,30 @@ static int abp_nwk_skey(const struct shell *shell, size_t argc, char **argv)
     return config_lorawan_param(shell, argv[1], ABP_NWK_SKEY_LEN, ABP_NWK_SKEY);
 }
 
+static int enable_sleep_cmd(const struct shell *shell, size_t argc, char **argv)
+{
+  if (!sleep_disabled) {
+    shell_error(shell, "Sleep has already been enabled");
+    return -EINVAL;
+  }
+  
+  enable_sleep();
+  sleep_disabled = false;
+  return 0;
+}
+
+static int disable_sleep_cmd(const struct shell *shell, size_t argc, char **argv)
+{
+  if (sleep_disabled) {
+    shell_error(shell, "Sleep has already been disabled");
+    return -EINVAL;
+  }
+
+  disable_sleep();
+  sleep_disabled = true;
+  return 0;
+}
+
 
 /* OTAA sub commands */
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_otaa,
@@ -251,3 +281,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_lorawan_config,
 
 SHELL_CMD_REGISTER(lorawan_config, &sub_lorawan_config, 
                    "Configure the LoRaWAN parameters", NULL);
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_power_sleep,
+    SHELL_CMD_ARG(enable, NULL, "Enable sleep", enable_sleep_cmd, 0, 0),
+    SHELL_CMD_ARG(disable,  NULL, "Disable sleep",  disable_sleep_cmd,  0, 0),
+    SHELL_SUBCMD_SET_END
+);
+
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_power,
+    SHELL_CMD(sleep,   &sub_power_sleep, "Configure sleep parameters", NULL),
+    SHELL_SUBCMD_SET_END
+);
+
+SHELL_CMD_REGISTER(power, &sub_power, 
+                   "Configure and view power management configuration", NULL);
