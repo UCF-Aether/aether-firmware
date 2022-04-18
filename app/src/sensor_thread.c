@@ -13,8 +13,16 @@
 #include "lora.h"
 #include "pm.h"
 
+void zmod_sample(struct k_work *work);
+void zmod_submit_sample(struct k_timer *timer);
+
 LOG_MODULE_REGISTER(sensor_thread, CONFIG_LOG_DEFAULT_LEVEL);
 
+K_TIMER_DEFINE(zmod_sampling_timer, zmod_submit_sample, NULL);
+K_WORK_DEFINE(zmod_sample_work, zmod_sample);
+
+#define ZMOD_SAMPLING_DURATION_MS 30000
+#define ZMOD_SAMPLING_DELAY_MS 1980
 #define IGNORE_ZMOD_STABILIZATION true
 // #define SLEEP_MS 900000
 #define SLEEP_MS 30000
@@ -85,40 +93,50 @@ void sensor_thread(void *arg1, void *arg2, void *arg3) {
     }
 
     rd.chan = CAYENNE_CHANNEL_ZMOD;
-    ret = sensor_sample_fetch(dev_zmod);
-    if (ret) {
-      LOG_ERR("Unable to fetch ZMOD4510 readings");
+    LOG_INF("Starting zmod4510 sampling timer");
+    k_timer_start(&zmod_sampling_timer, K_NO_WAIT, K_MSEC(ZMOD_SAMPLING_DELAY_MS));
+    k_msleep(ZMOD_SAMPLING_DURATION_MS);
+    k_timer_stop(&zmod_sampling_timer);
+    LOG_INF("Finished zmod4510 sampling");
+
+    // Use previous values from bme if bme fails for whaever reason.
+    ret = calc_oaq(dev_zmod, humidity_pct, temp_degc);
+    if (ret == -EINPROGRESS && !IGNORE_ZMOD_STABILIZATION) {
+      LOG_WRN("zmod4510 still stabilizing");
+    }
+    else if (ret != 0 && ret != -EINPROGRESS) {
+      LOG_ERR("zmod4510 oaq algo error! %d", ret);
     }
     else {
-      // Use previous values from bme if bme fails for whaever reason.
-      ret = calc_oaq(dev_zmod, humidity_pct, temp_degc);
-      if (ret == -EINPROGRESS && !IGNORE_ZMOD_STABILIZATION) {
-        LOG_WRN("zmod4510 still stabilizing");
+      if (ret == -EINPROGRESS)
+        LOG_WRN("zmod4510 still stabilizing. Skipping...");
+      ret = sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_O3, &o3_ppb_sv);
+      if (ret == 0) {
+        rd.type = CAYENNE_TYPE_O3;
+        rd.val.f = sensor_value_to_double(&o3_ppb_sv) / 1000;
+        LOG_INF("O3 (ppm) = %f", rd.val.f);
+        lorawan_schedule(&rd);
       }
-      else if (ret != 0 && ret != -EINPROGRESS) {
-        LOG_ERR("zmod4510 sensor fetch error! %d", ret);
-      }
-      else {
-        ret = sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_O3, &o3_ppb_sv);
-        if (ret == 0) {
-          rd.type = CAYENNE_TYPE_O3;
-          rd.val.f = sensor_value_to_double(&o3_ppb_sv) / 1000;
-          LOG_INF("O3 (ppm) = %f", rd.val.f);
-          lorawan_schedule(&rd);
-        }
-        // sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_NO2, &no2_ppb_sv);
+      // sensor_channel_get(dev_zmod, (enum sensor_channel) ZMOD4510_SENSOR_CHAN_NO2, &no2_ppb_sv);
 
-        ret = sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_AQI, &aqi_sv);
-        if (ret == 0) {
-          rd.type = CAYENNE_TYPE_AQI;
-          rd.val.u16 = sensor_value_to_double(&aqi_sv);
-          LOG_INF("ZMOD AQI (Index 0-500) = %d", rd.val.u16);
-          lorawan_schedule(&rd);
-        }
+      ret = sensor_channel_get(dev_zmod, ZMOD4510_SENSOR_CHAN_AQI, &aqi_sv);
+      if (ret == 0) {
+        rd.type = CAYENNE_TYPE_AQI;
+        rd.val.u16 = sensor_value_to_double(&aqi_sv);
+        LOG_INF("ZMOD AQI (Index 0-500) = %d", rd.val.u16);
+        lorawan_schedule(&rd);
       }
     }
 
     enable_sleep();
     k_msleep(SLEEP_MS);
   }
+}
+
+void zmod_sample(struct k_work *work) {
+  sensor_sample_fetch(dev_zmod);
+}
+
+void zmod_submit_sample(struct k_timer *timer) {
+  k_work_submit(&zmod_sample_work);
 }
