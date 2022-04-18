@@ -16,7 +16,8 @@
 LOG_MODULE_REGISTER(sensor_thread, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define IGNORE_ZMOD_STABILIZATION true
-#define SLEEP_MS 15000
+// #define SLEEP_MS 900000
+#define SLEEP_MS 30000
 
 const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 const struct device *dev_bme = DEVICE_DT_GET(DT_NODELABEL(bme680));

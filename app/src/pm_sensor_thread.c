@@ -14,8 +14,11 @@
 
 LOG_MODULE_REGISTER(pm_sensor_thread, CONFIG_LOG_DEFAULT_LEVEL);
 
-#define SPS_SLEEP 15000
-#define NUM_READINGS 5
+// #define SPS_SLEEP 900000
+#define SPS_SLEEP 30000
+#define NUM_READINGS 20
+#define SPS_READING_DELAY_MS 5000
+#define NUM_SKIP_READINGS 5
 
 // #define PWR_5V_DOMAIN DT_NODELABEL(pwr_5v_domain)
 
@@ -65,19 +68,26 @@ void pm_sensor_thread(void *arg1, void *arg2, void *arg3) {
       pm2_5_sum = 0, pm10_sum = 0;
       fail_count = 0;
 
-      for (int i = 0; i < NUM_READINGS; i++) {
+      for (int i = 0; i < NUM_READINGS + NUM_SKIP_READINGS; i++) {
         ret = sensor_sample_fetch(dev_sps);
+        if (i < NUM_SKIP_READINGS) {
+          k_msleep(SPS_READING_DELAY_MS);
+          continue;
+        }
+
         if (ret != 0) {
           continue;
           fail_count++;
         }
         sensor_channel_get(dev_sps, SENSOR_CHAN_PM_2_5, &pm2p5);
         sensor_channel_get(dev_sps, SENSOR_CHAN_PM_10, &pm10p0);
+        printk("pm2.5 %f\n", sensor_value_to_double(&pm2p5));
+        printk("pm10 %f\n", sensor_value_to_double(&pm10p0));
 
         pm2_5_sum += (float) sensor_value_to_double(&pm2p5);
         pm10_sum += (float) sensor_value_to_double(&pm10p0);
 
-        k_msleep(10000);
+        k_msleep(SPS_READING_DELAY_MS);
       }
 
       if (fail_count < NUM_READINGS) {
