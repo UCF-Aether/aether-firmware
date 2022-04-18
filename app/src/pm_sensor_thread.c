@@ -47,7 +47,7 @@ void pm_sensor_thread(void *arg1, void *arg2, void *arg3) {
   /* Configure SPS30 GPIO pin */
   ret = gpio_pin_configure_dt(&sps_gpio_power, GPIO_OUTPUT);
   if (ret) {
-    printk("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
+    LOG_ERR("Error %d: failed to configure pin %d\n", ret, sps_gpio_power.pin);
     return -EINVAL;
   }
 
@@ -57,7 +57,7 @@ void pm_sensor_thread(void *arg1, void *arg2, void *arg3) {
   /* Enable SPS30 GPIO pin */
     ret = gpio_pin_set_dt(&sps_gpio_power, 1);
     if (ret) {
-      printk("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
+      LOG_ERR("Error %d: failed to set pin %d\n", ret, sps_gpio_power.pin);
     }
     else {
       sps30_init(dev_sps);
@@ -81,8 +81,8 @@ void pm_sensor_thread(void *arg1, void *arg2, void *arg3) {
         }
         sensor_channel_get(dev_sps, SENSOR_CHAN_PM_2_5, &pm2p5);
         sensor_channel_get(dev_sps, SENSOR_CHAN_PM_10, &pm10p0);
-        printk("pm2.5 %f\n", sensor_value_to_double(&pm2p5));
-        printk("pm10 %f\n", sensor_value_to_double(&pm10p0));
+        LOG_INF("Unaveraged PM2.5 %f", sensor_value_to_double(&pm2p5));
+        LOG_INF("Unaveraged PM10 %f", sensor_value_to_double(&pm10p0));
 
         pm2_5_sum += (float) sensor_value_to_double(&pm2p5);
         pm10_sum += (float) sensor_value_to_double(&pm10p0);
