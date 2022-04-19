@@ -25,7 +25,7 @@ K_WORK_DEFINE(zmod_sample_work, zmod_sample);
 #define ZMOD_SAMPLING_DELAY_MS 1980
 #define IGNORE_ZMOD_STABILIZATION true
 // #define SLEEP_MS 900000
-#define SLEEP_MS 30000
+#define SLEEP_MS (60000 * 15)
 
 const struct device *dev_zmod = DEVICE_DT_GET(DT_NODELABEL(zmod4510));
 const struct device *dev_bme = DEVICE_DT_GET(DT_NODELABEL(bme680));
