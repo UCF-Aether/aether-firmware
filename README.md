@@ -17,7 +17,7 @@ west update
 Additional environment setup documentation can be found in the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
 
 ## Build Instructions
-To build the application, navigate to `/path/to/aether-workspace/zephyr`.
+To build the application, navigate to `/path/to/aether-workspace/aether/`.
 
 From there run
 ```
@@ -28,3 +28,6 @@ west flash
 To view the serial output, open a serial terminal with a baud rate of `115200`.
 
 For example, `picocom -b 115200 /dev/<device_name>`
+
+## Viewing Output
+Data collected from the Aether Node can be viewed at [aethersensor.network](https://aethersensor.network/)
