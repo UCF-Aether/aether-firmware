@@ -1,12 +1,11 @@
 <p align="center">
   <img src="https://user-images.githubusercontent.com/5152848/146123906-e0c5a518-798d-49a1-ba78-0f2eeff61f5f.png">
-  <!-- ![aether](https://user-images.githubusercontent.com/5152848/146123906-e0c5a518-798d-49a1-ba78-0f2eeff61f5f.png) -->
 </p>
 
 # Aether Firmware
 
 ## Prerequisites
-Install a GNU ARM toolchain.
+Download the [Zephyr SDK and a toolchain](https://github.com/zephyrproject-rtos/sdk-ng/releases) for your operating system.
 
 ## Initial Setup
 Before you can build this application, we must first setup a Zephyr envionment. This can be done as follows:
@@ -20,11 +19,11 @@ Additional environment setup documentation can be found in the [Zephyr Getting S
 ## Build Instructions
 To build the application, navigate to `/path/to/aether-workspace/zephyr`.
 
-From there run:
-
-`west build -p -b lora_e5_dev_board Aether-Firmware-Zephyr/app`
-
-Finally, running `west flash` will flash the built program to the board.
+From there run
+```
+west build -p -b aether app
+west flash
+```
 
 To view the serial output, open a serial terminal with a baud rate of `115200`.
 
